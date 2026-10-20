@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-kinari: #F6F1E7;
+    --bg-kinari-card: #FCFAF6;
+    --text-sumi: #2B2B2B;
+    --text-sumi-light: #6E685E;
+    --border-kinari: #E5DFD3;
+    --accent-ai: #2F4F6F;
+  }
+
+  body {
+    background-color: #F4EFE6;
+    color: #2B2B2B;
+    font-family: 'Zen Kaku Gothic New', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+.font-mincho {
+  font-family: 'Shippori Mincho', "Yu Mincho", "Hiragino Mincho ProN", serif;
+}
+
+/* Washi paper subtle texture effect */
+.washi-card {
+  background-color: #FAF7F0;
+  border: 1px solid #E6E0D2;
+  box-shadow: 0 1px 3px rgba(43, 43, 43, 0.04), 0 4px 12px rgba(43, 43, 43, 0.02);
+}
+
+.washi-card-deep {
+  background-color: #F7F3EB;
+  border: 1px solid #DDD6C7;
+  box-shadow: 0 2px 8px rgba(43, 43, 43, 0.06);
+}
+
+/* Letter writing paper lined effect */
+.paper-lines {
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 31px,
+    #E8E2D5 31px,
+    #E8E2D5 32px
+  );
+  line-height: 32px;
+}
+
+/* Subtle print media styles */
+@media print {
+  body {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-page {
+    page-break-after: always;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+}
