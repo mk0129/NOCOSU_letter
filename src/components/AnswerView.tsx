@@ -11,11 +11,9 @@ import {
   Mic,
   Square,
   ArrowLeft,
-  Sparkles,
   Loader2,
   AlertCircle,
   CheckCircle,
-  HelpCircle,
   PenLine,
 } from 'lucide-react';
 
@@ -156,9 +154,6 @@ export const AnswerView: React.FC<Props> = ({
 
     setIsGeneratingFollowUp(true);
     setTranscribeError('');
-    // 先に画面を進め、追い質問は裏で取りに行く（待たせない。「今日はここまで」はすぐ押せる）
-    setFollowUpQuestion('');
-    setStage('followup');
 
     try {
       const followUp = await apiFetchFollowUp(
@@ -167,8 +162,10 @@ export const AnswerView: React.FC<Props> = ({
         recipient
       );
       setFollowUpQuestion(followUp);
+      setStage('followup');
     } catch {
       setFollowUpQuestion('もう少し、詳しく聞かせてください。');
+      setStage('followup');
     } finally {
       setIsGeneratingFollowUp(false);
     }
@@ -208,7 +205,7 @@ export const AnswerView: React.FC<Props> = ({
         <button
           type="button"
           onClick={onCancel}
-          className="inline-flex items-center gap-1.5 text-xs text-[#6E685E] hover:text-[#2B2B2B] transition-colors py-1.5 px-2.5 rounded-lg hover:bg-[#EFE9DC]"
+          className="inline-flex items-center gap-1.5 text-xs text-[#6E685E] hover:text-[#2B2B2B] transition-colors py-1.5 px-2.5 rounded-lg hover:bg-[#EFE9DC] cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>ホームへ戻る</span>
@@ -217,7 +214,7 @@ export const AnswerView: React.FC<Props> = ({
         <button
           type="button"
           onClick={onCancel}
-          className="text-xs text-[#8E877D] hover:text-[#524E48] transition-colors"
+          className="text-xs text-[#8E877D] hover:text-[#524E48] transition-colors cursor-pointer"
         >
           答えなくてもいい（やめる）
         </button>
@@ -234,12 +231,9 @@ export const AnswerView: React.FC<Props> = ({
 
         <div className="space-y-1.5">
           <span className="text-xs text-[#8E877D] tracking-wide block">
-            {/* 言い換え（宛先の声）が取れていないときは「からの問い」と名乗らない */}
-            {todayState?.textForRecipient && todayState.textForRecipient !== question.text
-              ? `${recipient.name}からの問い`
-              : '今日の問い'}
+            {recipient.name}からの問い
           </span>
-          <h2 className="text-xl md:text-2xl font-mincho font-bold text-[#2B2B2B] leading-relaxed">
+          <h2 className="font-hand text-[1.5rem] font-normal text-[#2B2B2B] leading-relaxed">
             {todayState?.textForRecipient || question.text}
           </h2>
           <p className="text-[11px] text-[#A49E93] leading-relaxed">
@@ -260,7 +254,7 @@ export const AnswerView: React.FC<Props> = ({
                 if (transcribeError) setTranscribeError('');
               }}
               placeholder={`${recipient.name}へ向けて、思いつくままに。上手に書こうとせず、あなたの普段の言葉で大丈夫です...`}
-              className="w-full p-5 bg-[#FAF7F0] border border-[#E5DDD0] rounded-2xl text-[#2B2B2B] placeholder-[#A49E93] font-mincho text-base leading-relaxed focus:outline-hidden focus:ring-2 focus:ring-[#2F4F6F]/25 focus:border-[#2F4F6F] transition-all resize-y shadow-xs"
+              className="w-full p-5 bg-[#FAF7F0] border border-[#E0D8CB] rounded-2xl text-[#2B2B2B] placeholder-[#A49E93] font-mincho text-base leading-relaxed focus:outline-hidden focus:border-[#2B2B2B] transition-all resize-y"
             />
 
             {/* Character count & helpful note */}
@@ -272,23 +266,21 @@ export const AnswerView: React.FC<Props> = ({
 
           {/* Error Message */}
           {transcribeError && (
-            <div className="p-3 rounded-xl bg-[#FAF0EA] border border-[#EACEC0] text-xs text-[#A94420] flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-[#FAF0EA] border border-[#E0D8CB] text-xs text-[#A94420] flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{transcribeError}</span>
             </div>
           )}
 
           {/* Voice Recording Control Bar */}
-          <div className="p-4 rounded-xl bg-[#F5EFE4] border border-[#E5DDD0] flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="p-4 rounded-xl bg-[#F5EFE4] border border-[#E0D8CB] flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={handleToggleRecord}
                 disabled={isTranscribing || isGeneratingFollowUp}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-medium transition-all cursor-pointer shadow-xs ${
-                  isRecording
-                    ? 'bg-[#C05621] hover:bg-[#9C4221] text-white animate-pulse'
-                    : 'bg-[#FCFAF6] hover:bg-[#F0EAE0] text-[#2F4F6F] border border-[#DDD4C5]'
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-medium transition-all cursor-pointer border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] ${
+                  isRecording ? 'animate-pulse' : ''
                 }`}
               >
                 {isRecording ? (
@@ -298,14 +290,14 @@ export const AnswerView: React.FC<Props> = ({
                   </>
                 ) : (
                   <>
-                    <Mic className="w-4 h-4 text-[#2F4F6F]" />
+                    <Mic className="w-4 h-4 text-[#2B2B2B]" />
                     <span>声で入力する（マイク）</span>
                   </>
                 )}
               </button>
 
               {isTranscribing && (
-                <div className="flex items-center gap-1.5 text-xs text-[#2F4F6F]">
+                <div className="flex items-center gap-1.5 text-xs text-[#2B2B2B]">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>話し言葉のまま文字にしています...</span>
                 </div>
@@ -317,29 +309,26 @@ export const AnswerView: React.FC<Props> = ({
             </span>
           </div>
 
-          {/* Save / Submit Button */}
-          <div className="pt-2 space-y-2">
+          {/* Seal / Submit Button */}
+          <div className="pt-2">
             <button
               type="button"
               onClick={handleSaveMain}
               disabled={isGeneratingFollowUp || isRecording || isTranscribing}
-              className="w-full py-3.5 px-6 bg-[#2F4F6F] hover:bg-[#233B53] disabled:bg-[#A3B2C3] text-white font-medium rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              className="w-full py-3.5 px-6 border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 disabled:opacity-50 text-[#2B2B2B] font-medium rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
             >
               {isGeneratingFollowUp ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>言葉を受け取っています...</span>
+                  <span>封をしています...</span>
                 </>
               ) : (
                 <>
                   <PenLine className="w-4 h-4" />
-                  <span>この言葉をのこす</span>
+                  <span>封をする</span>
                 </>
               )}
             </button>
-            <p className="text-center text-xs text-[#8E877D]">
-              のこしたあと、聞き手として静かな問いかけをひとつお届けします
-            </p>
           </div>
         </div>
       )}
@@ -348,30 +337,22 @@ export const AnswerView: React.FC<Props> = ({
       {stage === 'followup' && (
         <div className="space-y-6">
           {/* Main Answer Summary Pill */}
-          <div className="p-4 rounded-xl bg-[#FAF7F0] border border-[#E6E0D2] space-y-1.5">
+          <div className="p-4 rounded-xl bg-[#FAF7F0] border border-[#E0D8CB] space-y-1.5">
             <span className="text-[11px] text-[#8E877D] block">あなたがのこした言葉:</span>
             <p className="text-sm text-[#2B2B2B] font-mincho line-clamp-3 leading-relaxed">
               {text}
             </p>
           </div>
 
-          {/* Gemini's Follow-up Card */}
-          <div className="washi-card rounded-2xl p-6 md:p-8 space-y-4 border-l-4 border-l-[#2F4F6F]">
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#2F4F6F]">
-              <Sparkles className="w-4 h-4" />
-              <span>聞き手からの問いかけ</span>
+          {/* Follow-up Card */}
+          <div className="washi-card rounded-2xl p-6 md:p-8 space-y-4">
+            <div className="flex items-center gap-2 text-xs text-[#8E877D]">
+              <span>封をしたあと、{recipient.name}がもう一つ聞いてきました</span>
             </div>
 
-            {isGeneratingFollowUp && !followUpQuestion ? (
-              <div className="flex items-center gap-2 text-sm text-[#8E877D] font-mincho py-2">
-                <Loader2 className="w-4 h-4 animate-spin text-[#2F4F6F]" />
-                <span>聞き手が、あなたの言葉を読んでいます…</span>
-              </div>
-            ) : (
-              <h3 className="text-xl font-mincho font-bold text-[#2B2B2B] leading-relaxed">
-                {followUpQuestion}
-              </h3>
-            )}
+            <h3 className="text-xl font-mincho font-medium text-[#2B2B2B] leading-relaxed">
+              {followUpQuestion}
+            </h3>
 
             <p className="text-xs text-[#8E877D]">
               この問いに答えても、答えなくても大丈夫です。
@@ -384,7 +365,7 @@ export const AnswerView: React.FC<Props> = ({
                 value={followUpAnswer}
                 onChange={(e) => setFollowUpAnswer(e.target.value)}
                 placeholder="思い浮かんだことがあれば、自由に書き添えてください..."
-                className="w-full p-4 bg-[#FCFAF6] border border-[#E5DDD0] rounded-xl text-[#2B2B2B] placeholder-[#A49E93] font-mincho text-sm leading-relaxed focus:outline-hidden focus:ring-2 focus:ring-[#2F4F6F]/25 focus:border-[#2F4F6F] transition-all resize-y"
+                className="w-full p-4 bg-[#FCFAF6] border border-[#E0D8CB] rounded-xl text-[#2B2B2B] placeholder-[#A49E93] font-mincho text-sm leading-relaxed focus:outline-hidden focus:border-[#2B2B2B] transition-all resize-y"
               />
 
               {/* Follow-up Mic Bar */}
@@ -393,10 +374,8 @@ export const AnswerView: React.FC<Props> = ({
                   type="button"
                   onClick={handleToggleFollowUpRecord}
                   disabled={isTranscribing}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                    isFollowUpRecording
-                      ? 'bg-[#C05621] text-white animate-pulse'
-                      : 'bg-[#FCFAF6] text-[#2F4F6F] border border-[#DDD4C5] hover:bg-[#F0EAE0]'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] ${
+                    isFollowUpRecording ? 'animate-pulse' : ''
                   }`}
                 >
                   {isFollowUpRecording ? (
@@ -406,14 +385,14 @@ export const AnswerView: React.FC<Props> = ({
                     </>
                   ) : (
                     <>
-                      <Mic className="w-3.5 h-3.5 text-[#2F4F6F]" />
+                      <Mic className="w-3.5 h-3.5 text-[#2B2B2B]" />
                       <span>声で答える</span>
                     </>
                   )}
                 </button>
 
                 {isTranscribing && (
-                  <span className="text-xs text-[#2F4F6F] flex items-center gap-1">
+                  <span className="text-xs text-[#2B2B2B] flex items-center gap-1">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     文字にしています...
                   </span>
@@ -428,7 +407,7 @@ export const AnswerView: React.FC<Props> = ({
               type="button"
               onClick={() => handleComplete(true)}
               disabled={isFollowUpRecording || isTranscribing}
-              className="w-full py-3.5 px-6 bg-[#2F4F6F] hover:bg-[#233B53] text-white font-medium rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              className="w-full py-3.5 px-6 border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] font-medium rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
             >
               <CheckCircle className="w-4 h-4" />
               <span>追い質問に答えて完了する</span>
@@ -437,7 +416,7 @@ export const AnswerView: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => handleComplete(false)}
-              className="w-full py-3 px-4 bg-[#FCFAF6] hover:bg-[#EFE9DC] text-[#524E48] text-sm font-medium rounded-xl border border-[#E5DFD3] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3 px-4 bg-transparent hover:bg-[#2B2B2B]/5 text-[#524E48] text-sm font-medium rounded-xl border border-[#2B2B2B] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>今日はここまでにする</span>
             </button>

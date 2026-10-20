@@ -169,9 +169,9 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#EFEAE0] flex justify-center py-0 md:py-6 text-[#2B2B2B]">
+    <div className="min-h-screen paper-noise flex justify-center py-0 md:py-6 text-[#2B2B2B]">
       {/* Mobile-first journal container */}
-      <div className="w-full max-w-md min-h-screen md:min-h-[92vh] md:rounded-3xl bg-[#F4EFE6] border-0 md:border md:border-[#E5DFD3] shadow-none md:shadow-xl flex flex-col relative overflow-hidden">
+      <div className="w-full max-w-md min-h-screen md:min-h-[92vh] md:rounded-3xl paper-noise border-0 md:border md:border-[#E0D8CB] shadow-none flex flex-col relative overflow-hidden">
         {/* Main Content Area */}
         <main className="flex-1 px-4 md:px-6 pt-5 pb-6 overflow-y-auto">
           {isAnswering && currentQuestion && recipient ? (

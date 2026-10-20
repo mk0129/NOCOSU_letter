@@ -192,6 +192,61 @@ export function formatJapaneseDate(dateStr: string): string {
   return dateStr;
 }
 
+export function formatPostmarkDate(dateStr: string): string {
+  const target = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+  if (isNaN(target.getTime())) return dateStr;
+  const m = target.getMonth() + 1;
+  const d = target.getDate();
+  return `${m}.${d}`;
+}
+
+// Calculate 24 Solar Terms (二十四節気) from a date string (YYYY-MM-DD)
+export function getSolarTerm(dateStr?: string): string {
+  const target = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+  const month = (isNaN(target.getTime()) ? new Date() : target).getMonth() + 1;
+  const day = (isNaN(target.getTime()) ? new Date() : target).getDate();
+  const md = month * 100 + day;
+
+  // Approximate standard transition dates (month * 100 + day) for the 24 solar terms
+  const terms: { start: number; name: string }[] = [
+    { start: 105, name: '小寒' },
+    { start: 120, name: '大寒' },
+    { start: 204, name: '立春' },
+    { start: 219, name: '雨水' },
+    { start: 305, name: '啓蟄' },
+    { start: 320, name: '春分' },
+    { start: 404, name: '清明' },
+    { start: 420, name: '穀雨' },
+    { start: 505, name: '立夏' },
+    { start: 521, name: '小満' },
+    { start: 605, name: '芒種' },
+    { start: 621, name: '夏至' },
+    { start: 707, name: '小暑' },
+    { start: 723, name: '大暑' },
+    { start: 807, name: '立秋' },
+    { start: 823, name: '処暑' },
+    { start: 907, name: '白露' },
+    { start: 923, name: '秋分' },
+    { start: 1008, name: '寒露' },
+    { start: 1023, name: '霜降' },
+    { start: 1107, name: '立冬' },
+    { start: 1122, name: '小雪' },
+    { start: 1207, name: '大雪' },
+    { start: 1222, name: '冬至' },
+  ];
+
+  // Before Jan 5 is still 冬至 from December
+  let current = '冬至';
+  for (const term of terms) {
+    if (md >= term.start) {
+      current = term.name;
+    } else {
+      break;
+    }
+  }
+  return current;
+}
+
 // Booklet order URL configuration
 export function getBookletOrderUrl(): string {
   try {

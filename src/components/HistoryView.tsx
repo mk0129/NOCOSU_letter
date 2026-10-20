@@ -53,12 +53,12 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
-      <div className="space-y-1 pt-1 border-b border-[#E6E0D2] pb-3">
-        <h2 className="text-xl font-mincho font-bold text-[#2B2B2B]">
-          これまで のこした言葉
+      <div className="space-y-1 pt-1 border-b border-[#E0D8CB] pb-3">
+        <h2 className="text-xl font-mincho font-medium text-[#2B2B2B]">
+          束
         </h2>
         <p className="text-xs text-[#6E685E]">
-          日々の問いにあなたが答えてきた記録です（{answers.length}編）
+          日々の問いにあなたが答えてきた記録です（{answers.length}通）
         </p>
       </div>
 
@@ -69,14 +69,14 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="言葉や質問を検索..."
-          className="w-full pl-9 pr-4 py-2.5 bg-[#FAF7F0] border border-[#E5DDD0] rounded-xl text-xs text-[#2B2B2B] placeholder-[#A49E93] focus:outline-hidden focus:ring-2 focus:ring-[#2F4F6F]/25 focus:border-[#2F4F6F] transition-all"
+          className="w-full pl-9 pr-4 py-2.5 bg-[#FAF7F0] border border-[#E0D8CB] rounded-xl text-xs text-[#2B2B2B] placeholder-[#A49E93] focus:outline-hidden focus:border-[#2B2B2B] transition-all"
         />
         <Search className="absolute left-3 top-3 w-4 h-4 text-[#A49E93]" />
         {searchQuery && (
           <button
             type="button"
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-2.5 text-[#A49E93] hover:text-[#524E48]"
+            className="absolute right-3 top-2.5 text-[#A49E93] hover:text-[#524E48] cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -92,10 +92,10 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
               key={t}
               type="button"
               onClick={() => setSelectedTheme(t)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs transition-all ${
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-[#2F4F6F] text-white font-medium shadow-xs'
-                  : 'bg-[#FAF7F0] text-[#6E685E] border border-[#E5DDD0] hover:border-[#C4BCAB]'
+                  ? 'bg-transparent text-[#2B2B2B] border border-[#2B2B2B] font-medium'
+                  : 'bg-transparent text-[#6E685E] border border-[#E0D8CB] hover:border-[#2B2B2B]/50'
               }`}
             >
               {t}
@@ -109,11 +109,8 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
         <div className="text-center py-16 washi-card rounded-2xl p-6 space-y-2">
           <p className="text-sm text-[#6E685E] font-mincho">
             {answers.length === 0
-              ? 'まだのこした言葉がありません。'
+              ? 'まだ一通も。今日の封筒から'
               : '該当する言葉が見つかりませんでした。'}
-          </p>
-          <p className="text-xs text-[#8E877D]">
-            ホームから今日の質問に答えてみましょう。
           </p>
         </div>
       ) : (
@@ -122,7 +119,7 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
             <div
               key={item.id}
               onClick={() => setActiveDetailAnswer(item)}
-              className="washi-card rounded-2xl p-4.5 space-y-2.5 hover:border-[#2F4F6F]/40 cursor-pointer transition-all active:scale-[0.995]"
+              className="washi-card rounded-2xl p-4.5 space-y-2.5 hover:border-[#2B2B2B]/50 cursor-pointer transition-all active:scale-[0.995]"
             >
               <div className="flex items-center justify-between text-[11px] text-[#8E877D]">
                 <div className="flex items-center gap-2">
@@ -134,7 +131,7 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
                 <span>{formatJapaneseDate(item.date)}</span>
               </div>
 
-              <h3 className="text-sm font-mincho font-bold text-[#2B2B2B] line-clamp-2 leading-relaxed">
+              <h3 className="text-sm font-mincho font-medium text-[#2B2B2B] line-clamp-2 leading-relaxed">
                 {item.textForRecipient || item.questionText}
               </h3>
 
@@ -144,14 +141,14 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
 
               <div className="flex items-center justify-between pt-1 text-[11px] text-[#8E877D]">
                 {item.followUpAnswer ? (
-                  <span className="inline-flex items-center gap-1 text-[#2F4F6F]">
+                  <span className="inline-flex items-center gap-1 text-[#524E48]">
                     <MessageCircle className="w-3.5 h-3.5" />
                     追い質問の回答あり
                   </span>
                 ) : (
                   <span />
                 )}
-                <span className="flex items-center gap-0.5 text-[#2F4F6F] font-medium">
+                <span className="flex items-center gap-0.5 text-[#2B2B2B] font-medium">
                   全文を読む
                   <ChevronRight className="w-3.5 h-3.5" />
                 </span>
@@ -164,9 +161,7 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
       {/* Detail Modal */}
       {activeDetailAnswer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs overflow-y-auto">
-          <div className="relative w-full max-w-md bg-[#FAF7F0] border border-[#E6E0D2] rounded-2xl shadow-xl overflow-hidden my-6">
-            <div className="h-1.5 bg-[#2F4F6F]" />
-
+          <div className="relative w-full max-w-md bg-[#FAF7F0] border border-[#E0D8CB] rounded-2xl overflow-hidden my-6">
             <div className="p-6 space-y-5">
               <div className="flex items-center justify-between text-xs text-[#8E877D]">
                 <div className="flex items-center gap-2">
@@ -178,7 +173,7 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
                 <button
                   type="button"
                   onClick={() => setActiveDetailAnswer(null)}
-                  className="p-1 rounded-full text-[#6E685E] hover:bg-[#EFE9DC]"
+                  className="p-1 rounded-full text-[#6E685E] hover:bg-[#EFE9DC] cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -188,7 +183,7 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
                 <span className="text-[11px] text-[#8E877D]">
                   {formatJapaneseDate(activeDetailAnswer.date)} にのこした言葉
                 </span>
-                <h3 className="text-lg font-mincho font-bold text-[#2B2B2B] leading-relaxed">
+                <h3 className="text-lg font-mincho font-medium text-[#2B2B2B] leading-relaxed">
                   {activeDetailAnswer.textForRecipient || activeDetailAnswer.questionText}
                 </h3>
                 {activeDetailAnswer.textForRecipient &&
@@ -200,7 +195,7 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
               </div>
 
               {/* Main text */}
-              <div className="p-4 rounded-xl bg-[#FCFAF6] border border-[#E5DDD0]">
+              <div className="p-4 rounded-xl bg-[#FCFAF6] border border-[#E0D8CB]">
                 <p className="text-sm font-mincho text-[#2B2B2B] leading-relaxed whitespace-pre-wrap">
                   {activeDetailAnswer.text}
                 </p>
@@ -208,8 +203,8 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
 
               {/* Follow-up section */}
               {activeDetailAnswer.followUpQuestion && (
-                <div className="p-4 rounded-xl bg-[#F5EFE4] border border-[#E5DDD0] space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs text-[#2F4F6F] font-semibold">
+                <div className="p-4 rounded-xl bg-[#F5EFE4] border border-[#E0D8CB] space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs text-[#524E48] font-medium">
                     <MessageCircle className="w-3.5 h-3.5" />
                     <span>追い質問: {activeDetailAnswer.followUpQuestion}</span>
                   </div>
@@ -226,10 +221,10 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
               )}
 
               {/* Actions */}
-              <div className="pt-2 flex items-center justify-between border-t border-[#E6E0D2]">
+              <div className="pt-2 flex items-center justify-between border-t border-[#E0D8CB]">
                 {confirmDeleteId === activeDetailAnswer.id ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#C05621]">本当に削除しますか？</span>
+                    <span className="text-xs text-[#2B2B2B]">本当に削除しますか？</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -237,14 +232,14 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
                         setActiveDetailAnswer(null);
                         setConfirmDeleteId(null);
                       }}
-                      className="px-2.5 py-1 bg-[#C05621] text-white text-xs rounded-lg font-medium"
+                      className="px-2.5 py-1 border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] text-xs rounded-lg font-medium cursor-pointer"
                     >
                       削除
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(null)}
-                      className="px-2 py-1 text-xs text-[#6E685E]"
+                      className="px-2 py-1 text-xs text-[#6E685E] cursor-pointer"
                     >
                       取消
                     </button>
@@ -253,7 +248,7 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteId(activeDetailAnswer.id)}
-                    className="inline-flex items-center gap-1 text-xs text-[#A94420] hover:text-[#7A280D] transition-colors"
+                    className="inline-flex items-center gap-1 text-xs text-[#6E685E] hover:text-[#2B2B2B] transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>この記録を削除</span>
@@ -263,7 +258,7 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
                 <button
                   type="button"
                   onClick={() => setActiveDetailAnswer(null)}
-                  className="px-4 py-2 bg-[#2F4F6F] text-white text-xs rounded-xl font-medium"
+                  className="px-4 py-2 border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] text-xs rounded-xl font-medium cursor-pointer"
                 >
                   閉じる
                 </button>
