@@ -131,8 +131,13 @@ JSON形式で返してください。
   } catch (error) {
     console.error('Error in select-question:', error);
     // Safe fallback
-    const { questions = [] } = req.body;
-    const fallbackQ = questions[0] || {
+    const { questions = [], answeredIds = [], allowDeep = false } = req.body;
+    const answeredSet = new Set(answeredIds as string[]);
+    let pool = (questions as { id: string; depth: string; text: string }[]).filter(
+      (q) => !answeredSet.has(q.id) && (allowDeep || q.depth !== 'deep')
+    );
+    if (pool.length === 0) pool = questions;
+    const fallbackQ = pool[Math.floor(Math.random() * pool.length)] || {
       id: 'fallback',
       text: '今日あった小さく嬉しかったことを教えてください。',
     };
@@ -395,12 +400,32 @@ JSON形式で返してください。
     });
 
     const parsed = JSON.parse(response.text || '{}');
+
+    // 検証: 選ばれた回答IDを漏れなく1回ずつ。リスト外IDは捨て、欠けたIDは末尾に補う
+    const selectedIds: string[] = answers.map((a: { id: string }) => a.id);
+    type SelectedAnswer = { id: string; questionText: string };
+    const byId = new Map<string, SelectedAnswer>(
+      (answers as SelectedAnswer[]).map((a) => [a.id, a])
+    );
+    const seen = new Set<string>();
+    const sections: { heading: string; answerId: string }[] = [];
+    for (const s of (parsed.sections || []) as { heading?: string; answerId?: string }[]) {
+      if (!s.answerId || !byId.has(s.answerId) || seen.has(s.answerId)) continue;
+      seen.add(s.answerId);
+      sections.push({
+        heading: (s.heading || byId.get(s.answerId)!.questionText || 'のこした言葉').slice(0, 20),
+        answerId: s.answerId,
+      });
+    }
+    for (const id of selectedIds) {
+      if (!seen.has(id)) {
+        sections.push({ heading: byId.get(id)!.questionText || 'のこした言葉', answerId: id });
+      }
+    }
+
     return res.json({
       title: parsed.title || `${recipient?.name || 'あなた'}へ、のこす手紙`,
-      sections: parsed.sections || answers.map((a: { id: string; questionText: string }) => ({
-        heading: a.questionText,
-        answerId: a.id,
-      })),
+      sections,
     });
   } catch (error) {
     console.error('Error in compile-letter:', error);
