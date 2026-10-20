@@ -4,6 +4,8 @@ import {
   exportAllData,
   importAllData,
   clearAllData,
+  getBookletOrderUrl,
+  saveBookletOrderUrl,
 } from '../utils/storage';
 import {
   Settings,
@@ -18,7 +20,36 @@ import {
   Check,
   AlertCircle,
   Phone,
+  BookOpen,
 } from 'lucide-react';
+
+export interface SupportResource {
+  id: string;
+  name: string;
+  description: string;
+  actionLabel: string;
+  url: string;
+  isExternalLink?: boolean;
+}
+
+export const SUPPORT_RESOURCES: SupportResource[] = [
+  {
+    id: 'cancer-support',
+    name: 'がん相談支援センター検索',
+    description: '全国の相談支援センターを探せる検索システム（国立がん研究センターがん情報サービス）',
+    actionLabel: '窓口を探す',
+    url: 'https://hospdb.ganjoho.jp/kyoten/',
+    isExternalLink: true,
+  },
+  {
+    id: 'yorisoi-hotline',
+    name: 'よりそいホットライン',
+    description: '通話料無料・24時間通話対応の相談窓口（一般社団法人 社会的包摂サポートセンター）',
+    actionLabel: '0120-279-338',
+    url: 'tel:0120-279-338',
+    isExternalLink: false,
+  },
+];
 
 interface Props {
   recipient: RecipientProfile;
@@ -40,7 +71,15 @@ export const SettingsView: React.FC<Props> = ({
   const [importStatus, setImportStatus] = useState<{ success: boolean; msg: string } | null>(
     null
   );
+  const [bookletOrderUrl, setBookletOrderUrl] = useState(() => getBookletOrderUrl());
+  const [isUrlSaved, setIsUrlSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleSaveBookletUrl = () => {
+    saveBookletOrderUrl(bookletOrderUrl);
+    setIsUrlSaved(true);
+    setTimeout(() => setIsUrlSaved(false), 2500);
+  };
 
   // Handle JSON export
   const handleExportJSON = () => {
@@ -165,6 +204,46 @@ export const SettingsView: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* Booklet Order URL Setting */}
+      <div className="washi-card rounded-2xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-[#C05621]" />
+            <span className="text-xs font-semibold text-[#6E685E] tracking-wider uppercase">
+              冊子注文フォームの設定
+            </span>
+          </div>
+          {isUrlSaved && (
+            <span className="text-xs text-green-700 flex items-center gap-1 font-medium">
+              <Check className="w-3.5 h-3.5" /> 保存しました
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-[#6E685E] leading-relaxed">
+          手紙プレビューの「冊子にする」ボタンから案内する注文フォームのURLを設定できます。空の場合は「準備中」と表示されます。
+        </p>
+
+        <div className="flex gap-2 pt-1">
+          <input
+            type="url"
+            value={bookletOrderUrl}
+            onChange={(e) => {
+              setBookletOrderUrl(e.target.value);
+              setIsUrlSaved(false);
+            }}
+            placeholder="https://example.com/order-form"
+            className="flex-1 px-3.5 py-2 bg-[#FCFAF6] border border-[#E5DDD0] rounded-xl text-xs text-[#2B2B2B] placeholder-[#A49E93] focus:outline-hidden focus:ring-2 focus:ring-[#2F4F6F]/25 focus:border-[#2F4F6F] transition-all"
+          />
+          <button
+            type="button"
+            onClick={handleSaveBookletUrl}
+            className="px-4 py-2 bg-[#2F4F6F] hover:bg-[#233B53] text-white text-xs font-medium rounded-xl transition-colors cursor-pointer shrink-0"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+
       {/* Data Backup & Restore */}
       <div className="washi-card rounded-2xl p-5 space-y-4">
         <span className="text-xs font-semibold text-[#6E685E] tracking-wider uppercase block">
@@ -221,7 +300,7 @@ export const SettingsView: React.FC<Props> = ({
       </div>
 
       {/* Support Hotlines Section */}
-      <div className="washi-card rounded-2xl p-5 space-y-3 bg-[#FAF5EC] border border-[#E8DFC9]">
+      <div className="washi-card rounded-2xl p-5 space-y-3.5 bg-[#FAF5EC] border border-[#E8DFC9]">
         <div className="flex items-center gap-2">
           <Phone className="w-4 h-4 text-[#7A4B1F]" />
           <h3 className="text-sm font-semibold text-[#2B2B2B]">
@@ -232,60 +311,43 @@ export const SettingsView: React.FC<Props> = ({
           自分を振り返る問いかけの中で、悲しみや苦しさを感じたときは、一人で抱え込まず専門の窓口にご相談ください。
         </p>
 
+        {/* Medical disclaimer note */}
+        <div className="p-3 rounded-xl bg-white/80 border border-[#E5DDD0] text-[11px] text-[#6E685E] leading-relaxed space-y-1">
+          <div className="flex items-center gap-1.5 font-semibold text-[#7A4B1F]">
+            <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+            <span>医療的な助言について</span>
+          </div>
+          <p>
+            当アプリは個人の言葉の記録や手紙の編纂を目的としており、医学的・医療的な診断や助言を行うものではありません。身体や心の不調・治療に関するご相談は、専門の医療機関や下記の公的な相談窓口へお寄せください。
+          </p>
+        </div>
+
+        {/* Support resources from constant array */}
         <div className="space-y-2 pt-1 text-xs text-[#524E48]">
-          <div className="p-2.5 rounded-lg bg-white/70 border border-[#E5DDD0] flex items-center justify-between">
-            <div>
-              <span className="font-semibold block text-[#2B2B2B]">
-                こころの健康相談統一ダイヤル
-              </span>
-              <span className="text-[#8E877D] text-[11px]">
-                対応時間は自治体により異なります
-              </span>
-            </div>
-            <a
-              href="tel:0570-064-556"
-              className="text-[#2F4F6F] font-bold text-sm tracking-wider hover:underline"
+          {SUPPORT_RESOURCES.map((resource) => (
+            <div
+              key={resource.id}
+              className="p-3 rounded-xl bg-white/70 border border-[#E5DDD0] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
             >
-              0570-064-556
-            </a>
-          </div>
-
-          <div className="p-2.5 rounded-lg bg-white/70 border border-[#E5DDD0] flex items-center justify-between">
-            <div>
-              <span className="font-semibold block text-[#2B2B2B]">
-                よりそいホットライン
-              </span>
-              <span className="text-[#8E877D] text-[11px]">
-                24時間通話無料の相談窓口
-              </span>
+              <div className="space-y-0.5">
+                <span className="font-semibold block text-[#2B2B2B]">
+                  {resource.name}
+                </span>
+                <span className="text-[#8E877D] text-[11px] block leading-relaxed">
+                  {resource.description}
+                </span>
+              </div>
+              <a
+                href={resource.url}
+                target={resource.isExternalLink ? '_blank' : undefined}
+                rel={resource.isExternalLink ? 'noopener noreferrer' : undefined}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#2F4F6F] hover:bg-[#233B53] text-white text-xs font-medium rounded-lg transition-colors shrink-0 cursor-pointer shadow-2xs"
+              >
+                <span>{resource.actionLabel}</span>
+                {resource.isExternalLink && <ExternalLink className="w-3 h-3" />}
+              </a>
             </div>
-            <a
-              href="tel:0120-279-338"
-              className="text-[#2F4F6F] font-bold text-sm tracking-wider hover:underline"
-            >
-              0120-279-338
-            </a>
-          </div>
-
-          <div className="p-2.5 rounded-lg bg-white/70 border border-[#E5DDD0] flex items-center justify-between">
-            <div>
-              <span className="font-semibold block text-[#2B2B2B]">
-                まもろうよ こころ（厚生労働省）
-              </span>
-              <span className="text-[#8E877D] text-[11px]">
-                LINE・チャット等のSNS相談窓口
-              </span>
-            </div>
-            <a
-              href="https://www.mhlw.go.jp/mamorouyokokoro/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[#2F4F6F] font-medium hover:underline text-xs"
-            >
-              <span>ウェブサイト</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
+          ))}
         </div>
       </div>
 

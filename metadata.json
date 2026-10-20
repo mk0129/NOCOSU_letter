@@ -2,5 +2,7 @@
   "name": "NOCOSU",
   "description": "大切な人へ、自分の言葉をのこす。毎日の問いかけに答え、手紙を編む記録帳。",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

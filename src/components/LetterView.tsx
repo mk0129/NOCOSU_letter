@@ -10,6 +10,7 @@ import {
   getCompiledLetters,
   saveCompiledLetter,
   formatJapaneseDate,
+  getBookletOrderUrl,
 } from '../utils/storage';
 import {
   Mail,
@@ -25,6 +26,10 @@ import {
   AlertCircle,
   Copy,
   Check,
+  BookOpen,
+  ExternalLink,
+  X,
+  QrCode,
 } from 'lucide-react';
 
 interface Props {
@@ -43,6 +48,7 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
   const [includeFollowUps, setIncludeFollowUps] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showBookletModal, setShowBookletModal] = useState(false);
 
   const answerMap = new Map(answers.map((a) => [a.id, a]));
 
@@ -332,10 +338,20 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
                   type="button"
                   onClick={handlePrint}
                   title="手紙を印刷"
-                  className="inline-flex items-center gap-1 py-1.5 px-3 rounded-lg bg-[#2F4F6F] hover:bg-[#233B53] text-xs font-medium text-white transition-colors"
+                  className="inline-flex items-center gap-1 py-1.5 px-3 rounded-lg bg-[#2F4F6F] hover:bg-[#233B53] text-xs font-medium text-white transition-colors cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>印刷する</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowBookletModal(true)}
+                  title="冊子にする"
+                  className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-[#FAF0E6] hover:bg-[#F3E5D4] text-xs font-medium text-[#7A4B1F] border border-[#E0CFBD] transition-colors cursor-pointer shadow-2xs"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-[#C05621]" />
+                  <span>冊子にする</span>
                 </button>
               </div>
             </div>
@@ -415,6 +431,106 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
             </div>
           </div>
         )
+      )}
+
+      {/* Booklet Info & Order Modal */}
+      {showBookletModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs overflow-y-auto no-print">
+          <div className="relative w-full max-w-md bg-[#FAF7F0] border border-[#E6E0D2] rounded-2xl shadow-xl overflow-hidden my-6">
+            <div className="h-1.5 bg-[#C05621]" />
+
+            <div className="p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-semibold text-[#7A4B1F]">
+                  <BookOpen className="w-4 h-4 text-[#C05621]" />
+                  <span>製本・冊子化のご案内</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowBookletModal(false)}
+                  className="p-1 rounded-full text-[#6E685E] hover:bg-[#EFE9DC] transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-mincho font-bold text-[#2B2B2B]">
+                  言葉を一冊の冊子に
+                </h3>
+                <p className="text-xs text-[#6E685E] leading-relaxed">
+                  のこした言葉を手にとれる形にし、大切な人に届けるための製本仕様です。
+                </p>
+              </div>
+
+              {/* Feature Cards */}
+              <div className="space-y-2.5 text-xs text-[#524E48]">
+                <div className="p-3.5 rounded-xl bg-[#FCFAF6] border border-[#E5DDD0] space-y-1">
+                  <span className="font-bold text-[#2B2B2B] block">・ 判型: A5判</span>
+                  <p className="text-[11px] text-[#6E685E] leading-relaxed">
+                    手になじみ、本棚や引き出しにいつまでも大切に保管できるコンパクトな単行本サイズです。
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#FCFAF6] border border-[#E5DDD0] space-y-1">
+                  <span className="font-bold text-[#2B2B2B] block">・ 本人の言葉のまま（本文は一切整えません）</span>
+                  <p className="text-[11px] text-[#6E685E] leading-relaxed">
+                    AIや編集者が要約・修正を加えることは一切ありません。あなたの言い淀み、方言、息づかいをそのまま活かして印刷します。
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#FCFAF6] border border-[#E5DDD0] space-y-1">
+                  <span className="font-bold text-[#2B2B2B] flex items-center gap-1.5">
+                    <QrCode className="w-3.5 h-3.5 text-[#2F4F6F]" />
+                    原音声へのQRコードを添える
+                  </span>
+                  <p className="text-[11px] text-[#6E685E] leading-relaxed">
+                    音声で吹き込んだ言葉がある場合、紙面の該当章に生音声をそのまま再生できるQRコードを添えて製本します。
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Button: Order Form Link */}
+              <div className="pt-2 space-y-2">
+                {(() => {
+                  const orderUrl = getBookletOrderUrl();
+                  if (orderUrl) {
+                    return (
+                      <a
+                        href={orderUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-3.5 px-4 bg-[#2F4F6F] hover:bg-[#233B53] text-white text-xs font-medium rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
+                      >
+                        <span>注文フォームへ</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    );
+                  } else {
+                    return (
+                      <div className="space-y-1.5">
+                        <div className="w-full py-3 px-4 bg-[#EFE9DC] text-[#8E877D] text-xs font-medium rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed">
+                          <span>準備中（注文フォーム未設定）</span>
+                        </div>
+                        <p className="text-[11px] text-[#A49E93] text-center">
+                          ※ 注文フォームのURLは「設定」画面からいつでも登録・変更できます。
+                        </p>
+                      </div>
+                    );
+                  }
+                })()}
+
+                <button
+                  type="button"
+                  onClick={() => setShowBookletModal(false)}
+                  className="w-full py-2.5 px-4 bg-[#FCFAF6] hover:bg-[#EFE9DC] text-[#524E48] text-xs font-medium rounded-xl border border-[#E5DFD3] transition-colors cursor-pointer"
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

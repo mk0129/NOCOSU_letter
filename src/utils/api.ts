@@ -200,8 +200,9 @@ export async function apiCompileLetter(
     人との付き合い: 6,
     '迷ったとき、決めるとき': 7,
     失敗と後悔: 8,
-    '生きること、死ぬこと': 9,
-    あなたへ: 10,
+    '生きること、これからのこと': 9,
+    のこしておきたいこと: 10,
+    あなたへ: 11,
   };
 
   const sortedAnswers = [...answers].sort((a, b) => {

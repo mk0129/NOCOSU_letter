@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { RecipientProfile, RecipientRelation } from '../types';
-import { Heart, User, Sparkles, AlertCircle, X } from 'lucide-react';
+import { Heart, User, Sparkles, AlertCircle, X, ArrowRight } from 'lucide-react';
 
 interface Props {
   initialProfile?: RecipientProfile | null;
@@ -37,6 +37,7 @@ export const OnboardingModal: React.FC<Props> = ({
   onClose,
   isEditMode = false,
 }) => {
+  const [step, setStep] = useState<'intro' | 'form'>(isEditMode ? 'form' : 'intro');
   const [relation, setRelation] = useState<RecipientRelation>(
     initialProfile?.relation || 'child'
   );
@@ -75,26 +76,73 @@ export const OnboardingModal: React.FC<Props> = ({
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 text-[#6E685E] hover:text-[#2B2B2B] p-1.5 rounded-full hover:bg-[#EFE9DC] transition-colors"
+            className="absolute top-4 right-4 text-[#6E685E] hover:text-[#2B2B2B] p-1.5 rounded-full hover:bg-[#EFE9DC] transition-colors cursor-pointer"
             aria-label="閉じる"
           >
             <X className="w-5 h-5" />
           </button>
         )}
 
-        <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
-          <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#EAE0D0] text-[#2F4F6F] mb-1">
-              <Heart className="w-6 h-6 stroke-[1.8]" />
+        {step === 'intro' && !isEditMode ? (
+          /* Step 1: Prologue / Introduction Screen */
+          <div className="p-6 md:p-8 space-y-6 text-center">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setStep('form')}
+                className="text-xs text-[#8E877D] hover:text-[#2B2B2B] transition-colors py-1 px-2.5 rounded-lg hover:bg-[#EFE9DC] cursor-pointer"
+              >
+                スキップ
+              </button>
             </div>
-            <h2 className="text-2xl font-mincho font-bold text-[#2B2B2B] tracking-wide">
-              {isEditMode ? '宛先の設定' : '誰に、のこしますか'}
-            </h2>
-            <p className="text-sm text-[#6E685E] leading-relaxed">
-              あなたの言葉を受け取る相手を1人決めます。<br />
-              問いかけはその人へ語りかけるように届きます。
-            </p>
+
+            <div className="space-y-4 py-3">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[#EAE0D0] text-[#2F4F6F] shadow-2xs">
+                <Sparkles className="w-6 h-6 stroke-[1.8]" />
+              </div>
+
+              <h2 className="text-2xl font-mincho font-bold text-[#2B2B2B] tracking-wider">
+                NOCOSU
+              </h2>
+
+              <div className="space-y-3 pt-2 text-[#2B2B2B]">
+                <p className="text-base font-mincho font-medium leading-relaxed">
+                  毎朝ひとつ、<br />
+                  <span className="text-[#2F4F6F] font-bold">大切な人の声</span>で質問が届きます。
+                </p>
+                <p className="text-sm font-mincho text-[#524E48] leading-relaxed">
+                  答えるのはあなたの言葉。<br />
+                  AIは一文字も書きません。
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 space-y-2.5">
+              <button
+                type="button"
+                onClick={() => setStep('form')}
+                className="w-full py-3.5 px-6 bg-[#2F4F6F] hover:bg-[#233B53] text-white font-medium rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+              >
+                <span>宛先を決める</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+        ) : (
+          /* Step 2: Recipient Selection Form */
+          <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#EAE0D0] text-[#2F4F6F] mb-1">
+                <Heart className="w-6 h-6 stroke-[1.8]" />
+              </div>
+              <h2 className="text-2xl font-mincho font-bold text-[#2B2B2B] tracking-wide">
+                {isEditMode ? '宛先の設定' : '誰に、のこしますか'}
+              </h2>
+              <p className="text-sm text-[#6E685E] leading-relaxed">
+                あなたの言葉を受け取る相手を1人決めます。<br />
+                毎朝、その人からの問いかけとして届きます。
+              </p>
+            </div>
 
           {/* Relation Selection */}
           <div className="space-y-2">
@@ -183,7 +231,7 @@ export const OnboardingModal: React.FC<Props> = ({
                   深い質問も含める
                 </span>
                 <p className="text-xs text-[#6E685E] leading-relaxed">
-                  死や後悔、人生の終わりに関する質問を含めます。（全体の15%以下。いつでも設定から変更できます）
+                  後悔や人生の歩み、大切な別れに関する問いも含めます。（全体の15%以下。いつでも設定から変更できます）
                 </p>
               </div>
               <button
@@ -213,6 +261,7 @@ export const OnboardingModal: React.FC<Props> = ({
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

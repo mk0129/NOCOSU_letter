@@ -10,7 +10,7 @@ export interface RecipientProfile {
   relation: RecipientRelation;
   name: string; // 呼び方 (例: 「ひなた」「お父さん」「10年後の僕」)
   ageGroup?: string; // 年齢帯 (例: 「小学生」「中高生」「20代」「同年代」「未設定」)
-  allowDeep: boolean; // 「深い質問（死や後悔）も含める」初期オフ
+  allowDeep: boolean; // 「深い質問も含める」初期オフ
   updatedAt: string;
 }
 

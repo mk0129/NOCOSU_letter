@@ -104,11 +104,14 @@ export const HomeView: React.FC<Props> = ({
             <span className="text-xs text-[#8E877D]">{todayAnswer.theme}</span>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
+            <span className="text-xs text-[#8E877D] tracking-wide block">
+              {recipient.name}からの問い
+            </span>
             <h3 className="text-lg font-mincho font-semibold text-[#2B2B2B] leading-relaxed">
               {todayAnswer.textForRecipient || todayAnswer.questionText}
             </h3>
-            <p className="text-xs text-[#8E877D] font-sans">
+            <p className="text-[11px] text-[#A49E93] font-sans">
               元の質問: {todayAnswer.questionText}
             </p>
           </div>
@@ -171,20 +174,16 @@ export const HomeView: React.FC<Props> = ({
               </div>
 
               {/* Question Text */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <span className="text-xs text-[#8E877D] tracking-wide block">
-                  {recipient.name}へ向けて届いた問い
+                  {recipient.name}からの問い
                 </span>
                 <h2 className="text-xl md:text-2xl font-mincho font-bold text-[#2B2B2B] leading-relaxed">
                   {todayState?.textForRecipient || currentQuestion?.text}
                 </h2>
-                {todayState?.textForRecipient &&
-                  currentQuestion?.text &&
-                  todayState.textForRecipient !== currentQuestion.text && (
-                    <p className="text-xs text-[#8E877D] leading-relaxed">
-                      原題: {currentQuestion.text}
-                    </p>
-                  )}
+                <p className="text-[11px] text-[#A49E93] leading-relaxed">
+                  元の質問: {currentQuestion?.text}
+                </p>
               </div>
 
               {/* Gemini Why Note (if available) */}
@@ -238,15 +237,10 @@ export const HomeView: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Gentle Reflection Box */}
-      <div className="p-5 rounded-2xl bg-[#F7F2E8] border border-[#E5DDD0] text-xs text-[#6E685E] space-y-2">
-        <h4 className="font-semibold text-[#2B2B2B] flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-[#2F4F6F]" />
-          NOCOSUについて
-        </h4>
-        <p className="leading-relaxed">
-          AIは本文を一文字も書きません。整えたり、提案したりすることもしません。
-          あなたの口癖、言い淀み、不器用な表現、そのすべてが大切な「あなたらしさ」です。
+      {/* NOCOSUについて（1行の控えめな注記） */}
+      <div className="text-center pt-1">
+        <p className="text-[11px] text-[#A49E93]">
+          NOCOSUについて: AIは本文を一文字も整えず、あなたの言葉をそのまま残します。
         </p>
       </div>
     </div>

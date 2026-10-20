@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
   TODAY_QUESTION: 'nocosu_today_question_state',
   MIRROR_CACHE: 'nocosu_mirror_generation',
   LETTERS: 'nocosu_compiled_letters',
+  BOOKLET_ORDER_URL: 'nocosu_booklet_order_url',
 };
 
 // Recipient profile
@@ -191,6 +192,24 @@ export function formatJapaneseDate(dateStr: string): string {
   return dateStr;
 }
 
+// Booklet order URL configuration
+export function getBookletOrderUrl(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.BOOKLET_ORDER_URL) || '';
+  } catch (e) {
+    console.error('Error reading booklet order url', e);
+    return '';
+  }
+}
+
+export function saveBookletOrderUrl(url: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.BOOKLET_ORDER_URL, url.trim());
+  } catch (e) {
+    console.error('Error saving booklet order url', e);
+  }
+}
+
 // Export / Import / Reset
 export function exportAllData(): string {
   const data = {
@@ -200,6 +219,7 @@ export function exportAllData(): string {
     answers: getAnswers(),
     mirrorCache: getMirrorCache(),
     letters: getCompiledLetters(),
+    bookletOrderUrl: getBookletOrderUrl(),
   };
   return JSON.stringify(data, null, 2);
 }
@@ -215,6 +235,9 @@ export function importAllData(jsonStr: string): boolean {
     if (Array.isArray(data.letters)) {
       localStorage.setItem(STORAGE_KEYS.LETTERS, JSON.stringify(data.letters));
     }
+    if (typeof data.bookletOrderUrl === 'string') {
+      saveBookletOrderUrl(data.bookletOrderUrl);
+    }
     return true;
   } catch (e) {
     console.error('Import failed', e);
@@ -228,4 +251,6 @@ export function clearAllData(): void {
   localStorage.removeItem(STORAGE_KEYS.TODAY_QUESTION);
   localStorage.removeItem(STORAGE_KEYS.MIRROR_CACHE);
   localStorage.removeItem(STORAGE_KEYS.LETTERS);
+  localStorage.removeItem(STORAGE_KEYS.BOOKLET_ORDER_URL);
 }
+

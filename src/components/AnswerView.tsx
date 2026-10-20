@@ -231,15 +231,17 @@ export const AnswerView: React.FC<Props> = ({
           <span className="text-[#8E877D]">宛先: {recipient.name}</span>
         </div>
 
-        <h2 className="text-xl md:text-2xl font-mincho font-bold text-[#2B2B2B] leading-relaxed">
-          {todayState?.textForRecipient || question.text}
-        </h2>
-
-        {todayState?.textForRecipient &&
-          question.text &&
-          todayState.textForRecipient !== question.text && (
-            <p className="text-xs text-[#8E877D]">原題: {question.text}</p>
-          )}
+        <div className="space-y-1.5">
+          <span className="text-xs text-[#8E877D] tracking-wide block">
+            {recipient.name}からの問い
+          </span>
+          <h2 className="text-xl md:text-2xl font-mincho font-bold text-[#2B2B2B] leading-relaxed">
+            {todayState?.textForRecipient || question.text}
+          </h2>
+          <p className="text-[11px] text-[#A49E93] leading-relaxed">
+            元の質問: {question.text}
+          </p>
+        </div>
       </div>
 
       {/* Main Text Input Area */}
