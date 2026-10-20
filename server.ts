@@ -34,6 +34,8 @@ const getAI = () => {
 };
 
 const MODEL_NAME = 'gemini-2.5-flash';
+// 思考モードを切る（既定オンだと数秒かかる。この用途では不要）
+const FAST = { thinkingConfig: { thinkingBudget: 0 } };
 
 // 1. 今日の質問を選ぶ
 app.post('/api/gemini/select-question', async (req, res) => {
@@ -71,19 +73,34 @@ app.post('/api/gemini/select-question', async (req, res) => {
       });
     }
 
-    const candidateSummary = candidates.map((q: { id: string; theme: string; depth: string; text: string }) => ({
-      id: q.id,
-      theme: q.theme,
-      depth: q.depth,
-      text: q.text,
-    }));
+    // プロンプトを小さくする: 候補をテーマ分散で最大12問に絞る（Geminiは選ぶだけ。全件送る必要はない）
+    type Cand = { id: string; theme: string; depth: string; text: string };
+    const shuffled = [...(candidates as Cand[])].sort(() => Math.random() - 0.5);
+    const byTheme = new Map<string, Cand[]>();
+    for (const q of shuffled) {
+      if (!byTheme.has(q.theme)) byTheme.set(q.theme, []);
+      byTheme.get(q.theme)!.push(q);
+    }
+    const sampled: Cand[] = [];
+    let round = 0;
+    while (sampled.length < Math.min(12, shuffled.length)) {
+      let added = false;
+      for (const list of byTheme.values()) {
+        if (list[round]) { sampled.push(list[round]); added = true; }
+        if (sampled.length >= 12) break;
+      }
+      if (!added) break;
+      round += 1;
+    }
+    candidates = sampled;
+    const candidateSummary = sampled.map((q) => ({ id: q.id, theme: q.theme, text: q.text }));
 
     const prompt = `
 あなたは大切な人へ自分の言葉をのこす記録帳アプリ「NOCOSU」の案内人です。
 宛先である「${recipient?.name || '大切な人'}」（間柄: ${recipient?.relation || '未定'}、年齢帯: ${recipient?.ageGroup || '未定'}）が、ユーザー本人へ向けて尋ねる今日の質問を、以下の候補リストから【必ず1つ】選んでください。
 
 【候補質問リスト】:
-${JSON.stringify(candidateSummary, null, 2)}
+${JSON.stringify(candidateSummary)}
 
 【厳格なルール】:
 1. 候補リストに実在する質問の "id" のみを "questionId" として返してください。リスト外の新しい質問は絶対に作らないでください。
@@ -111,6 +128,7 @@ JSON形式で返してください。
       model: MODEL_NAME,
       contents: prompt,
       config: {
+        ...FAST,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -197,6 +215,7 @@ app.post('/api/gemini/follow-up', async (req, res) => {
       model: MODEL_NAME,
       contents: prompt,
       config: {
+        ...FAST,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -253,6 +272,7 @@ JSON形式で {"transcript": "..."} を返してください。
       model: MODEL_NAME,
       contents: { parts: [audioPart, textPart] },
       config: {
+        ...FAST,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -309,6 +329,7 @@ JSON形式で返してください。
       model: MODEL_NAME,
       contents: prompt,
       config: {
+        ...FAST,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -391,6 +412,7 @@ JSON形式で返してください。
       model: MODEL_NAME,
       contents: prompt,
       config: {
+        ...FAST,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,

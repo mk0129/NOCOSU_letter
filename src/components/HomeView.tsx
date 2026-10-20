@@ -176,7 +176,10 @@ export const HomeView: React.FC<Props> = ({
               {/* Question Text */}
               <div className="space-y-2">
                 <span className="text-xs text-[#8E877D] tracking-wide block">
-                  {recipient.name}からの問い
+                  {/* 言い換え（宛先の声）が取れていないときは「からの問い」と名乗らない */}
+                  {todayState?.textForRecipient && todayState.textForRecipient !== currentQuestion?.text
+                    ? `${recipient.name}からの問い`
+                    : '今日の問い'}
                 </span>
                 <h2 className="text-xl md:text-2xl font-mincho font-bold text-[#2B2B2B] leading-relaxed">
                   {todayState?.textForRecipient || currentQuestion?.text}

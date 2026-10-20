@@ -156,6 +156,9 @@ export const AnswerView: React.FC<Props> = ({
 
     setIsGeneratingFollowUp(true);
     setTranscribeError('');
+    // 先に画面を進め、追い質問は裏で取りに行く（待たせない。「今日はここまで」はすぐ押せる）
+    setFollowUpQuestion('');
+    setStage('followup');
 
     try {
       const followUp = await apiFetchFollowUp(
@@ -164,10 +167,8 @@ export const AnswerView: React.FC<Props> = ({
         recipient
       );
       setFollowUpQuestion(followUp);
-      setStage('followup');
     } catch {
       setFollowUpQuestion('もう少し、詳しく聞かせてください。');
-      setStage('followup');
     } finally {
       setIsGeneratingFollowUp(false);
     }
@@ -233,7 +234,10 @@ export const AnswerView: React.FC<Props> = ({
 
         <div className="space-y-1.5">
           <span className="text-xs text-[#8E877D] tracking-wide block">
-            {recipient.name}からの問い
+            {/* 言い換え（宛先の声）が取れていないときは「からの問い」と名乗らない */}
+            {todayState?.textForRecipient && todayState.textForRecipient !== question.text
+              ? `${recipient.name}からの問い`
+              : '今日の問い'}
           </span>
           <h2 className="text-xl md:text-2xl font-mincho font-bold text-[#2B2B2B] leading-relaxed">
             {todayState?.textForRecipient || question.text}
@@ -358,9 +362,16 @@ export const AnswerView: React.FC<Props> = ({
               <span>聞き手からの問いかけ</span>
             </div>
 
-            <h3 className="text-xl font-mincho font-bold text-[#2B2B2B] leading-relaxed">
-              {followUpQuestion}
-            </h3>
+            {isGeneratingFollowUp && !followUpQuestion ? (
+              <div className="flex items-center gap-2 text-sm text-[#8E877D] font-mincho py-2">
+                <Loader2 className="w-4 h-4 animate-spin text-[#2F4F6F]" />
+                <span>聞き手が、あなたの言葉を読んでいます…</span>
+              </div>
+            ) : (
+              <h3 className="text-xl font-mincho font-bold text-[#2B2B2B] leading-relaxed">
+                {followUpQuestion}
+              </h3>
+            )}
 
             <p className="text-xs text-[#8E877D]">
               この問いに答えても、答えなくても大丈夫です。
