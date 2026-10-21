@@ -1,7 +1,7 @@
 import React from 'react';
-import { Home, BookOpen, Quote, Mail, Settings } from 'lucide-react';
+import { Home, BookOpen, Quote, Mail, Settings, Users } from 'lucide-react';
 
-export type NavTab = 'home' | 'history' | 'mirror' | 'letter' | 'settings';
+export type NavTab = 'home' | 'history' | 'mirror' | 'letter' | 'circle' | 'settings';
 
 interface Props {
   currentTab: NavTab;
@@ -15,6 +15,7 @@ export const BottomNav: React.FC<Props> = ({ currentTab, onSelectTab }) => {
     { id: 'history', label: 'これまで', icon: BookOpen },
     { id: 'mirror', label: '鏡', icon: Quote },
     { id: 'letter', label: '手紙', icon: Mail },
+    { id: 'circle', label: '輪', icon: Users },
     { id: 'settings', label: '設定', icon: Settings },
   ];
 

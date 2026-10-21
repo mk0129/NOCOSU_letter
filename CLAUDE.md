@@ -9,7 +9,8 @@
 - **核**: AIは本文を一文字も書かない・整えない。AIの役割は「聞く・映す・並べる」だけ
 - **出口**: 手紙（画面・画像カード・冊子）。払うのは本人より家族と冊子
 - **Non-goals（作らない）**: チャットUI / AIの整形・要約・提案 / フォロー・いいね・タイムライン / 宛先4人以上 / 課金（応募まで） / 故人や宛先の声の合成
-- **v0.2以降（別枠）**: 家族の輪（全員が答えたら開く）/ 世の中の輪（問い単位の匿名公開）/ 聞き手モードの音声（Gemini Live）
+- **v0.2 実装済み（最小）**: 家族の輪（招待コード、答えを輪に送る、読む、「読んだ」「ありがとう」）。メールのリンクでログイン
+- **v0.2以降（別枠）**: 全員が答えたら開く / 世の中の輪（問い単位の匿名公開・しおり）/ 聞き手モードの音声（Gemini Live）
 
 ## 2. 技術スタック（固定。珍しいライブラリを足さない）
 - Vite + React 19 + TypeScript + Tailwind v4（既存）
@@ -17,7 +18,7 @@
 - モデル `gemini-2.5-flash`、全呼び出しで `thinkingConfig.thinkingBudget: 0`、JSON出力（responseSchema）
 - アニメーションは `motion/react` のみ。アイコンは `lucide-react` 最小限（Sparkles禁止）
 - フォント: 問い＝Zen Kurenaido（.font-hand）、本文＝Shippori Mincho 400（.font-mincho）、UI＝Zen Kaku Gothic New
-- データ: localStorage（v0.1）。v0.2で Firebase。`.env` に `GEMINI_API_KEY`（コミット禁止）
+- データ: 本人の答えは localStorage。**家族の輪は Supabase**（project `nocosu` rzjhfhjaxioqnxzkrltp, ap-northeast-1）。公開キーは `src/lib/supabase.ts`、RLSで守る。スキーマは `supabase/migrations/20261021_family_circle.sql`。`.env` に `GEMINI_API_KEY`（コミット禁止）
 
 ## 3. データスキーマ（先に固める。UIより優先）
 ```ts
@@ -30,6 +31,11 @@ Answer       { id, questionId, questionText, textForRecipient?, theme, depth,
 Mirror       { generatedAt, items: {label, quote(原文完全一致), answerId}[] }
 Letter       { id, createdAt, title, recipientId, sections: {heading, answerId}[], answerIds }
 Trustee      { name, note?, updatedAt }
+-- Supabase（家族の輪）
+circles { id, name, invite_code, created_by }  circle_members { circle_id, user_id, display_name }
+shared_answers { id, circle_id, user_id, author_name, local_answer_id, question_id, question_text, text(無加工), dialogue, read_when, answered_on }
+answer_reads { shared_answer_id, user_id, reaction: 'read'|'thanks' }
+RPC: create_circle(name, display_name) / join_circle(code, display_name)  -- security definer, authenticated のみ
 ```
 - 宛先モデルは **C案**（問いは一つ、届け先は封をするときに複数選ぶ）。2026-10-21 承認・実装済み。v0.1 の単一宛先データは起動時に `migrateIfNeeded()` で移行
 - 鏡の quote は `answer.text.includes(quote)` をサーバーとクライアントの両方で検証。落ちたものは表示しない

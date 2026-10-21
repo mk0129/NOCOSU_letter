@@ -33,6 +33,7 @@ import { MirrorView } from './components/MirrorView';
 import { LetterView } from './components/LetterView';
 import { SettingsView } from './components/SettingsView';
 import { FirstLetterPreview } from './components/FirstLetterPreview';
+import { CircleView } from './components/CircleView';
 
 const questionsBank: QuestionItem[] = questionsData as QuestionItem[];
 const firstQuestions: QuestionItem[] = firstQuestionsData as QuestionItem[];
@@ -60,7 +61,15 @@ export default function App() {
   const [firstAnswer, setFirstAnswer] = useState<AnswerItem | null>(null);
 
   // Navigation & Active View
-  const [currentTab, setCurrentTab] = useState<NavTab>('home');
+  // メールのリンクから戻ってきたときは「輪」を開く（/?tab=circle）
+  const [currentTab, setCurrentTab] = useState<NavTab>(() => {
+    try {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      return t === 'circle' ? 'circle' : 'home';
+    } catch {
+      return 'home';
+    }
+  });
   const [isAnswering, setIsAnswering] = useState(false);
   const [editingAnswer, setEditingAnswer] = useState<AnswerItem | null>(null);
 
@@ -323,6 +332,8 @@ export default function App() {
               {currentTab === 'letter' && hasRecipients && (
                 <LetterView answers={answers} recipients={recipients} />
               )}
+
+              {currentTab === 'circle' && <CircleView answers={answers} />}
 
               {currentTab === 'settings' && hasRecipients && (
                 <SettingsView
