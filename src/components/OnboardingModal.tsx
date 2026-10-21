@@ -85,7 +85,7 @@ const Panel4 = () => (
   </svg>
 );
 
-const PANELS = [
+export const PANELS = [
   { art: <Panel1 />, text: '毎朝ひとつ、問いが届きます。' },
   { art: <Panel2 />, text: '答えるのは、あなたの言葉だけ。' },
   { art: <Panel3 />, text: '答えは束になって、のこります。' },

@@ -85,6 +85,7 @@ export interface MirrorItem {
 export interface MirrorGeneration {
   generatedAt: string;
   items: MirrorItem[];
+  count?: number; // 何通目のときに映したか
 }
 
 export interface LetterSection {
