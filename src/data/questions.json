@@ -29,7 +29,6 @@
     "depth": "light",
     "text": "小学生の頃、将来は何になりたいと思っていましたか？"
   },
-
   {
     "id": "q-family-1",
     "theme": "家族のこと",
@@ -60,7 +59,6 @@
     "depth": "light",
     "text": "家族と過ごした時間の中で、一番安心した瞬間はどんなときでしたか？"
   },
-
   {
     "id": "q-daily-1",
     "theme": "好きなもの、毎日のこと",
@@ -91,7 +89,6 @@
     "depth": "light",
     "text": "季節の変わり目に、ふと感じる好きな匂いや空気はありますか？"
   },
-
   {
     "id": "q-work-1",
     "theme": "仕事のこと",
@@ -122,7 +119,6 @@
     "depth": "light",
     "text": "忙しすぎるとき、どのようにして息抜きやバランスを取ってきましたか？"
   },
-
   {
     "id": "q-emotion-1",
     "theme": "気持ちのこと",
@@ -153,7 +149,6 @@
     "depth": "light",
     "text": "自分の性格の中で、「ここは気に入っている」と思える部分はどこですか？"
   },
-
   {
     "id": "q-relation-1",
     "theme": "人との付き合い",
@@ -184,7 +179,6 @@
     "depth": "light",
     "text": "「この人と出会えて本当によかった」と思える人について教えてください。"
   },
-
   {
     "id": "q-choice-1",
     "theme": "迷ったとき、決めるとき",
@@ -215,7 +209,6 @@
     "depth": "light",
     "text": "迷って立ち止まってしまったとき、いつも誰に相談してきましたか？"
   },
-
   {
     "id": "q-regret-1",
     "theme": "失敗と後悔",
@@ -246,7 +239,6 @@
     "depth": "deep",
     "text": "過去の自分に戻れるとしたら、どの頃の自分にどんな声をかけてあげたいですか？"
   },
-
   {
     "id": "q-life-1",
     "theme": "生きること、これからのこと",
@@ -277,7 +269,6 @@
     "depth": "deep",
     "text": "もし人生が一度きりだとしたら、これからの毎日に残したいものは何ですか？"
   },
-
   {
     "id": "q-toyou-1",
     "theme": "あなたへ",
@@ -308,7 +299,6 @@
     "depth": "light",
     "text": "あなたと出会えたことで、私の人生はどう変わったと思いますか？"
   },
-
   {
     "id": "q-leave-1",
     "theme": "のこしておきたいこと",
@@ -338,5 +328,95 @@
     "theme": "のこしておきたいこと",
     "depth": "light",
     "text": "大切な人の将来に、どんなことを願っていますか?"
+  },
+  {
+    "id": "q-two-1",
+    "theme": "二人のこと",
+    "depth": "light",
+    "text": "初めて会った日、相手のことをどう思いましたか？",
+    "for": [
+      "couple",
+      "partners"
+    ]
+  },
+  {
+    "id": "q-two-2",
+    "theme": "二人のこと",
+    "depth": "light",
+    "text": "相手の口癖で、好きなものはありますか？",
+    "for": [
+      "couple",
+      "partners"
+    ]
+  },
+  {
+    "id": "q-two-3",
+    "theme": "二人のこと",
+    "depth": "light",
+    "text": "二人で行った場所で、また行きたいところはどこですか？",
+    "for": [
+      "couple",
+      "partners",
+      "friends"
+    ]
+  },
+  {
+    "id": "q-two-4",
+    "theme": "二人のこと",
+    "depth": "light",
+    "text": "相手に、ちゃんと言えていない「ありがとう」はありますか？",
+    "for": [
+      "couple",
+      "partners",
+      "parent_child",
+      "family",
+      "friends"
+    ]
+  },
+  {
+    "id": "q-two-5",
+    "theme": "二人のこと",
+    "depth": "light",
+    "text": "相手が知らないと思う、自分の小さな習慣は？",
+    "for": [
+      "couple",
+      "partners"
+    ]
+  },
+  {
+    "id": "q-two-6",
+    "theme": "二人のこと",
+    "depth": "light",
+    "text": "相手のどんなところを、尊敬していますか？",
+    "for": [
+      "couple",
+      "partners",
+      "friends",
+      "parent_child",
+      "family"
+    ]
+  },
+  {
+    "id": "q-two-7",
+    "theme": "二人のこと",
+    "depth": "light",
+    "text": "二人で笑ったことで、いちばん思い出すのは？",
+    "for": [
+      "couple",
+      "partners",
+      "friends",
+      "family",
+      "parent_child"
+    ]
+  },
+  {
+    "id": "q-two-8",
+    "theme": "二人のこと",
+    "depth": "light",
+    "text": "10年後、二人でどんな一日を過ごしていたいですか？",
+    "for": [
+      "couple",
+      "partners"
+    ]
   }
 ]

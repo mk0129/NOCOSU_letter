@@ -9,7 +9,7 @@
 - **核**: AIは本文を一文字も書かない・整えない。AIの役割は「聞く・映す・並べる」だけ
 - **出口**: 手紙（画面・画像カード・冊子）。払うのは本人より家族と冊子
 - **Non-goals（作らない）**: チャットUI / AIの整形・要約・提案 / フォロー・いいね・タイムライン / 宛先4人以上 / 課金（応募まで） / 故人や宛先の声の合成
-- **v0.2 実装済み（最小）**: 家族の輪（招待コード、答えを輪に送る、読む、「読んだ」「ありがとう」）。メールのリンクでログイン
+- **v0.2 実装済み**: 輪（招待リンク `/?join=CODE` ＋匿名ログイン、間柄、同じ問いに全員が答えたら次 = `advance_circle_question`、答えを輪に届ける、読む、「読んだ」「ありがとう」）
 - **v0.2以降（別枠）**: 全員が答えたら開く / 世の中の輪（問い単位の匿名公開・しおり）/ 聞き手モードの音声（Gemini Live）
 
 ## 2. 技術スタック（固定。珍しいライブラリを足さない）
@@ -35,7 +35,8 @@ Trustee      { name, note?, updatedAt }
 circles { id, name, invite_code, created_by }  circle_members { circle_id, user_id, display_name }
 shared_answers { id, circle_id, user_id, author_name, local_answer_id, question_id, question_text, text(無加工), dialogue, read_when, answered_on }
 answer_reads { shared_answer_id, user_id, reaction: 'read'|'thanks' }
-RPC: create_circle(name, display_name) / join_circle(code, display_name)  -- security definer, authenticated のみ
+circle_questions { circle_id, round, question_id, question_text, theme }  -- 輪の問い。全員が答えたら次の round
+RPC: create_circle(name, display_name, relation) / join_circle(code, display_name) / circle_preview_by_code(code) / advance_circle_question(circle, qid, text, theme)  -- security definer, authenticated のみ
 ```
 - 宛先モデルは **C案**（問いは一つ、届け先は封をするときに複数選ぶ）。2026-10-21 承認・実装済み。v0.1 の単一宛先データは起動時に `migrateIfNeeded()` で移行
 - 鏡の quote は `answer.text.includes(quote)` をサーバーとクライアントの両方で検証。落ちたものは表示しない
@@ -48,7 +49,7 @@ RPC: create_circle(name, display_name) / join_circle(code, display_name)  -- sec
 - Empty State: 空の画面に無機質な文を出さない。束が空なら「つくった人から」の手紙（`src/data/sample_letter.json`）。将来は「つくった人の三通」（本物の答え）
 - Loading: スピナーでなく輪郭（スケルトン）。追い質問は画面を先に進め、裏で取る
 - **画面は一つ**（タイムライン）。上に今日の問い、下に家族の手紙。タブは作らない。残りは右上の丸（自分のページ）に置く
-- 認証は匿名（端末に紐づく）。家族は招待リンク `/?join=CODE` を開き呼び名を入れるだけ。メール・パスワードを求めない
+- 輪の認証は匿名（端末に紐づく）。相手は招待リンク `/?join=CODE` を開き呼び名を入れるだけ。メール・パスワードを求めない
 - 1画面1アクション。スマホ縦持ち基準、max-w-md
 
 ## 5. 作業ルール

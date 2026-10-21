@@ -11,7 +11,8 @@ export async function apiSelectQuestion(
   answeredIds: string[],
   recipient: RecipientProfile | null,
   allowDeep: boolean,
-  recentThemes: string[]
+  recentThemes: string[],
+  relation: string | null = null
 ): Promise<{ questionId: string; textForRecipient: string; why: string }> {
   try {
     const res = await fetch('/api/gemini/select-question', {
@@ -23,6 +24,7 @@ export async function apiSelectQuestion(
         recipient,
         allowDeep,
         recentThemes,
+        relation,
       }),
     });
 
@@ -39,6 +41,7 @@ export async function apiSelectQuestion(
   // Fallback selection logic
   const answeredSet = new Set(answeredIds);
   let available = questions.filter((q) => !answeredSet.has(q.id));
+  available = available.filter((q) => !q.for || (relation && q.for.includes(relation as never)));
   if (!allowDeep) {
     available = available.filter((q) => q.depth !== 'deep');
   }

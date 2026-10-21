@@ -26,7 +26,9 @@ interface Props {
   question: QuestionItem;
   todayState: TodayQuestionState | null;
   existingAnswer?: AnswerItem | null;
-  onSave: (answer: AnswerItem) => void;
+  onSave: (answer: AnswerItem, opts?: { toCircle: boolean }) => void;
+  /** 輪に入っているとき、その名前（「輪に届ける」の切替を出す） */
+  circleName?: string | null;
   onCancel: () => void;
   /** 初回体験: 追い質問を省き、封をしたらすぐ完了する */
   skipFollowUp?: boolean;
@@ -43,7 +45,9 @@ export const AnswerView: React.FC<Props> = ({
   onCancel,
   skipFollowUp = false,
   firstRun = false,
+  circleName = null,
 }) => {
+  const [toCircle, setToCircle] = useState(true);
   // 宛先が1人なら、その人の声で。複数なら「聞き手」
   const single = recipients.length === 1 ? recipients[0] : null;
   const voiceName = single ? single.name : '聞き手';
@@ -248,7 +252,7 @@ export const AnswerView: React.FC<Props> = ({
       dialogue: turns.length ? turns : undefined,
       readWhen,
     };
-    onSave(finalAnswer);
+    onSave(finalAnswer, { toCircle: !!circleName && toCircle });
   };
 
   // 互換: 初回体験など、追い質問なしで完了
@@ -375,8 +379,21 @@ export const AnswerView: React.FC<Props> = ({
             </span>
           </div>
 
+          {/* 輪に届けるか（輪に入っているときだけ） */}
+          {circleName && !firstRun && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setToCircle((v) => !v)}
+                className={`px-3 py-1.5 rounded-full text-xs border cursor-pointer ${toCircle ? 'border-[#2B2B2B] bg-[#EFE9DC] text-[#2B2B2B]' : 'border-[#E0D8CB] text-[#8E877D]'}`}
+              >
+                {toCircle ? `${circleName}に届ける` : '自分だけにのこす'}
+              </button>
+            </div>
+          )}
+
           {/* 届け先（宛先が複数のときだけ） */}
-          {recipients.length > 1 && !firstRun && (
+          {recipients.length > 1 && !firstRun && !circleName && (
             <div className="space-y-2">
               <span className="text-[11px] text-[#8E877D] tracking-wide block">届ける相手</span>
               <div className="flex flex-wrap gap-1.5">

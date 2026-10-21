@@ -40,11 +40,13 @@ const FAST = { thinkingConfig: { thinkingBudget: 0 } };
 // 1. 今日の質問を選ぶ
 app.post('/api/gemini/select-question', async (req, res) => {
   try {
-    const { questions, answeredIds = [], recipient, allowDeep = false, recentThemes = [] } = req.body;
+    const { questions, answeredIds = [], recipient, allowDeep = false, recentThemes = [], relation = null } = req.body;
 
     // Filter available questions in code first to enforce strict safety constraints
     const answeredSet = new Set(answeredIds);
     let candidates = questions.filter((q: { id: string; depth: string }) => !answeredSet.has(q.id));
+    // 間柄限定の問い（for）は、その間柄の輪のときだけ。輪なし（1人）のときは出さない
+    candidates = candidates.filter((q: { for?: string[] }) => !q.for || (relation && q.for.includes(relation)));
     if (!allowDeep) {
       candidates = candidates.filter((q: { depth: string }) => q.depth !== 'deep');
     }

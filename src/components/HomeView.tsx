@@ -23,6 +23,8 @@ interface Props {
   streakCount: number;
   /** 最後に封をした日（YYYY-MM-DD）。無ければ null */
   lastAnswerDate: string | null;
+  /** 輪: 自分は答えたが、まだ答えていない人の呼び名 */
+  waitingFor?: string[];
   totalAnswerCount: number;
   isLoadingQuestion: boolean;
   onAnswerClick: () => void;
@@ -36,6 +38,7 @@ export const HomeView: React.FC<Props> = ({
   currentQuestion,
   todayAnswer,
   lastAnswerDate,
+  waitingFor = [],
   totalAnswerCount,
   isLoadingQuestion,
   onAnswerClick,
@@ -294,6 +297,12 @@ export const HomeView: React.FC<Props> = ({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {waitingFor.length > 0 && (
+            <p className="text-xs text-[#6E685E] font-mincho text-center">
+              {waitingFor.join('・')}を待っています。揃ったら、次の問いが届きます。
+            </p>
+          )}
 
           {/* Action Button: 今日の返事を読む・書き足す */}
           <button

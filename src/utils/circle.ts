@@ -1,5 +1,5 @@
 import { supabase, supabaseConfigured } from '../lib/supabase';
-import { AnswerItem, DialogueTurn } from '../types';
+import { AnswerItem, DialogueTurn, CircleRelation } from '../types';
 
 // 家族の輪（最小版）: 招待コードで輪を作る／入る、答えを輪に送る、読む、「読んだ」「ありがとう」を返す
 // 本文（text）はサーバーにそのまま置く。加工しない。
@@ -9,6 +9,17 @@ export interface Circle {
   name: string;
   invite_code: string;
   created_by: string;
+  created_at: string;
+  relation: CircleRelation;
+}
+
+export interface CircleQuestion {
+  id: string;
+  circle_id: string;
+  round: number;
+  question_id: string;
+  question_text: string;
+  theme: string | null;
   created_at: string;
 }
 
@@ -50,19 +61,42 @@ export async function getSessionUser() {
   return data.user ?? null;
 }
 
-/** メールにリンクを送る。押すとこの画面に戻ってログイン済みになる */
-export async function sendMagicLink(email: string): Promise<string | null> {
-  if (!supabase) return 'サーバー未設定';
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + '/?tab=circle' },
-  });
-  if (!error) return null;
-  if (/rate limit/i.test(error.message)) return 'メールの送信回数の上限に達しました。しばらく待ってからもう一度';
-  return error.message;
+/** 端末に紐づく匿名アカウントでログイン（メール不要）。既にログイン済みならそのまま */
+export async function ensureSession(): Promise<{ userId: string } | { error: string }> {
+  if (!supabase) return { error: 'サーバー未設定' };
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.user) return { userId: data.session.user.id };
+  const { data: anon, error } = await supabase.auth.signInAnonymously();
+  if (error || !anon.user) {
+    const msg = error?.message || '';
+    if (/anonymous/i.test(msg)) return { error: 'サーバー側で匿名ログインが無効です（Supabase: Authentication → Sign In / Providers → Anonymous を有効に）' };
+    return { error: msg || 'ログインできませんでした' };
+  }
+  return { userId: anon.user.id };
 }
 
-/** ログイン状態の変化を購読（リンクから戻ってきたときに拾う） */
+export function inviteUrl(code: string): string {
+  return `${window.location.origin}/?join=${encodeURIComponent(code)}`;
+}
+
+export function joinCodeFromUrl(): string | null {
+  try {
+    const c = new URLSearchParams(window.location.search).get('join');
+    return c ? c.toUpperCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 招待コードから、入る前に見せる情報 */
+export async function circlePreviewByCode(code: string): Promise<{ name: string; relation: CircleRelation; member_count: number } | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc('circle_preview_by_code', { p_code: code });
+  if (error || !data || !(data as unknown[]).length) return null;
+  const row = (data as { name: string; relation: CircleRelation; member_count: number }[])[0];
+  return row;
+}
+
 export function onAuthChange(cb: () => void): () => void {
   if (!supabase) return () => {};
   const { data } = supabase.auth.onAuthStateChange(() => cb());
@@ -85,9 +119,9 @@ export async function myCircles(): Promise<Circle[]> {
   return (data as Circle[]) || [];
 }
 
-export async function createCircle(name: string, displayName: string): Promise<Circle | string> {
+export async function createCircle(name: string, displayName: string, relation: CircleRelation = 'family'): Promise<Circle | string> {
   if (!supabase) return 'サーバー未設定';
-  const { data, error } = await supabase.rpc('create_circle', { p_name: name, p_display_name: displayName });
+  const { data, error } = await supabase.rpc('create_circle', { p_name: name, p_display_name: displayName, p_relation: relation });
   if (error) return error.message;
   return data as Circle;
 }
@@ -170,4 +204,39 @@ export async function mySharedLocalIds(circleId: string): Promise<Set<string>> {
     .eq('circle_id', circleId)
     .eq('user_id', u.user.id);
   return new Set(((data as { local_answer_id: string }[]) || []).map((r) => r.local_answer_id));
+}
+
+// ---- 輪の問い（全員が答えたら次）
+export async function currentCircleQuestion(circleId: string): Promise<CircleQuestion | null> {
+  if (!supabase) return null;
+  const { data } = await supabase
+    .from('circle_questions')
+    .select('*')
+    .eq('circle_id', circleId)
+    .order('round', { ascending: false })
+    .limit(1);
+  const rows = (data as CircleQuestion[]) || [];
+  return rows[0] || null;
+}
+
+export async function circleQuestionIds(circleId: string): Promise<string[]> {
+  if (!supabase) return [];
+  const { data } = await supabase.from('circle_questions').select('question_id').eq('circle_id', circleId);
+  return ((data as { question_id: string }[]) || []).map((r) => r.question_id);
+}
+
+/** 全員が答えていれば次の問いを置く（サーバー側で判定）。戻り値は現在の問い */
+export async function advanceCircleQuestion(circleId: string, q: { id: string; text: string; theme: string }): Promise<CircleQuestion | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc('advance_circle_question', {
+    p_circle: circleId,
+    p_question_id: q.id,
+    p_question_text: q.text,
+    p_theme: q.theme,
+  });
+  if (error) {
+    console.warn(error);
+    return null;
+  }
+  return data as CircleQuestion;
 }

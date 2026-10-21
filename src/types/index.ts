@@ -32,7 +32,18 @@ export interface QuestionItem {
   theme: string;
   depth: DepthLevel;
   text: string;
+  /** 間柄限定の問い（例: ['couple','partners']）。無ければ誰にでも */
+  for?: CircleRelation[];
 }
+
+export type CircleRelation = 'family' | 'parent_child' | 'couple' | 'partners' | 'friends';
+export const CIRCLE_RELATIONS: { id: CircleRelation; label: string }[] = [
+  { id: 'family', label: '家族' },
+  { id: 'parent_child', label: '親子' },
+  { id: 'couple', label: '夫婦' },
+  { id: 'partners', label: '恋人' },
+  { id: 'friends', label: '友人' },
+];
 
 export interface TodayQuestionState {
   date: string; // YYYY-MM-DD
