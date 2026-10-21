@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { RecipientProfile } from '../types';
+import { RecipientProfile, AppSettings } from '../types';
+import { notificationPermission, requestNotificationPermission, downloadMorningIcs, notificationSupported } from '../utils/reminder';
 import sampleLetter from '../data/sample_letter.json';
 import {
   exportAllData,
@@ -56,6 +57,8 @@ export const SUPPORT_RESOURCES: SupportResource[] = [
 interface Props {
   recipients: RecipientProfile[];
   allowDeep: boolean;
+  settings: AppSettings;
+  onUpdateSettings: (patch: Partial<AppSettings>) => void;
   onEditRecipient: () => void;
   onUpdateDeepToggle: (allowDeep: boolean) => void;
   onDataReset: () => void;
@@ -65,6 +68,8 @@ interface Props {
 export const SettingsView: React.FC<Props> = ({
   recipients,
   allowDeep,
+  settings,
+  onUpdateSettings,
   onEditRecipient,
   onUpdateDeepToggle,
   onDataReset,
@@ -217,6 +222,67 @@ export const SettingsView: React.FC<Props> = ({
             />
           </button>
         </div>
+      </div>
+
+      {/* 朝の通知 */}
+      <div className="washi-card rounded-2xl p-5 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <span className="text-sm font-medium text-[#2B2B2B]">朝の通知</span>
+            <p className="text-xs text-[#6E685E] leading-relaxed">
+              設定した時刻を過ぎて、まだ今日の封をしていなければ一度だけ知らせます。アプリを閉じていると届かないので、カレンダーにも入れておけます。
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={settings.reminderEnabled}
+            onClick={async () => {
+              if (!settings.reminderEnabled && notificationPermission() !== 'granted') {
+                const r = await requestNotificationPermission();
+                if (r !== 'granted') {
+                  onUpdateSettings({ reminderEnabled: false });
+                  return;
+                }
+              }
+              onUpdateSettings({ reminderEnabled: !settings.reminderEnabled });
+            }}
+            className={`shrink-0 w-12 h-6.5 rounded-full transition-colors relative focus:outline-hidden cursor-pointer ${
+              settings.reminderEnabled ? 'bg-[#2B2B2B]' : 'bg-[#D6CFC3]'
+            }`}
+          >
+            <span
+              className={`inline-block w-5 h-5 rounded-full bg-white transform transition-transform absolute top-0.5 ${
+                settings.reminderEnabled ? 'translate-x-6 left-0.5' : 'translate-x-0.5 left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-[#6E685E]">時刻</label>
+          <input
+            type="time"
+            value={settings.reminderTime}
+            onChange={(e) => onUpdateSettings({ reminderTime: e.target.value || '07:30' })}
+            className="px-3 py-1.5 bg-[#FCFAF6] border border-[#E0D8CB] rounded-xl text-xs text-[#2B2B2B] focus:outline-hidden focus:border-[#2B2B2B]"
+          />
+          <span className="text-[11px] text-[#8E877D]">
+            {!notificationSupported()
+              ? 'この端末は通知に対応していません'
+              : notificationPermission() === 'granted'
+                ? '通知は許可されています'
+                : notificationPermission() === 'denied'
+                  ? '通知がブロックされています（ブラウザの設定から）'
+                  : '通知は未許可'}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => downloadMorningIcs(settings.reminderTime, window.location.origin)}
+          className="px-3 py-1.5 border border-[#E0D8CB] hover:border-[#2B2B2B] text-[#2B2B2B] text-xs rounded-xl cursor-pointer"
+        >
+          カレンダーに毎朝の予定を入れる（.ics）
+        </button>
       </div>
 
       {/* 託す人 */}

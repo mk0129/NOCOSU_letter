@@ -6,6 +6,7 @@ import {
   CompiledLetter,
   Trustee,
   AppSettings,
+  DEFAULT_SETTINGS,
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -52,10 +53,10 @@ export function getRecipientProfile(): RecipientProfile | null {
 export function getSettings(): AppSettings {
   try {
     const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    return data ? { allowDeep: false, ...(JSON.parse(data) as Partial<AppSettings>) } : { allowDeep: false };
+    return data ? { ...DEFAULT_SETTINGS, ...(JSON.parse(data) as Partial<AppSettings>) } : { ...DEFAULT_SETTINGS };
   } catch (e) {
     console.error('Error reading settings', e);
-    return { allowDeep: false };
+    return { ...DEFAULT_SETTINGS };
   }
 }
 
@@ -83,7 +84,7 @@ export function migrateIfNeeded(): void {
         updatedAt: legacy.updatedAt || new Date().toISOString(),
       };
       saveRecipients([migrated]);
-      saveSettings({ allowDeep: !!legacy.allowDeep });
+      saveSettings({ ...DEFAULT_SETTINGS, allowDeep: !!legacy.allowDeep });
       localStorage.removeItem(STORAGE_KEYS.RECIPIENT);
     }
     // 回答に届け先が無ければ、全宛先へ
@@ -383,7 +384,7 @@ export function importAllData(jsonStr: string): boolean {
     const data = JSON.parse(jsonStr);
     if (Array.isArray(data.recipients)) saveRecipients(data.recipients);
     else if (data.recipient) localStorage.setItem(STORAGE_KEYS.RECIPIENT, JSON.stringify(data.recipient)); // v0.1 形式 → 起動時に移行
-    if (data.settings) saveSettings({ allowDeep: !!data.settings.allowDeep });
+    if (data.settings) saveSettings({ ...DEFAULT_SETTINGS, ...data.settings });
     if (data.trustee) saveTrustee(data.trustee);
     if (Array.isArray(data.answers)) {
       localStorage.setItem(STORAGE_KEYS.ANSWERS, JSON.stringify(data.answers));

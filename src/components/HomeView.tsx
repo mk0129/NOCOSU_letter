@@ -21,6 +21,8 @@ interface Props {
   currentQuestion: QuestionItem | null;
   todayAnswer: AnswerItem | null;
   streakCount: number;
+  /** 最後に封をした日（YYYY-MM-DD）。無ければ null */
+  lastAnswerDate: string | null;
   totalAnswerCount: number;
   isLoadingQuestion: boolean;
   onAnswerClick: () => void;
@@ -33,6 +35,7 @@ export const HomeView: React.FC<Props> = ({
   todayState,
   currentQuestion,
   todayAnswer,
+  lastAnswerDate,
   totalAnswerCount,
   isLoadingQuestion,
   onAnswerClick,
@@ -68,6 +71,18 @@ export const HomeView: React.FC<Props> = ({
           </h1>
         </div>
       </header>
+
+      {/* 途切れを許す: 空いた日があっても責めない */}
+      {(() => {
+        if (!lastAnswerDate || todayAnswer) return null;
+        const days = Math.floor((Date.now() - new Date(lastAnswerDate + 'T00:00:00').getTime()) / 86400000);
+        if (days < 3) return null;
+        return (
+          <p className="text-xs text-[#6E685E] font-mincho text-center leading-relaxed">
+            {days}日ぶりですね。空いた日のことは、気にしなくて大丈夫です。
+          </p>
+        );
+      })()}
 
       {/* Recipient Ribbon */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#FAF7F0] border border-[#E0D8CB] rounded-xl text-xs text-[#524E48]">

@@ -19,7 +19,11 @@ export const MAX_RECIPIENTS = 3;
 
 export interface AppSettings {
   allowDeep: boolean; // 「深い質問も含める」初期オフ
+  reminderEnabled: boolean; // 朝の通知
+  reminderTime: string; // 'HH:MM'
+  lastNotifiedDate?: string; // YYYY-MM-DD（同じ日に二度鳴らさない）
 }
+export const DEFAULT_SETTINGS: AppSettings = { allowDeep: false, reminderEnabled: false, reminderTime: '07:30' };
 
 export type DepthLevel = 'light' | 'deep';
 

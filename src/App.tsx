@@ -23,6 +23,7 @@ import {
   getTodayDateString,
 } from './utils/storage';
 import { apiSelectQuestion } from './utils/api';
+import { maybeNotify } from './utils/reminder';
 import { OnboardingModal } from './components/OnboardingModal';
 import { BottomNav, NavTab } from './components/BottomNav';
 import { HomeView } from './components/HomeView';
@@ -83,6 +84,45 @@ export default function App() {
   );
 
   const streakCount = useMemo(() => calculateStreak(answers), [answers]);
+  const lastAnswerDate = useMemo(
+    () => (answers.length ? [...answers].map((a) => a.date).sort().reverse()[0] : null),
+    [answers]
+  );
+
+  // 朝の通知: 開いている間、1分ごとに条件を見る（閉じている間は .ics が保険）
+  useEffect(() => {
+    const voice = recipients.length === 1 ? recipients[0].name : null;
+    const tick = () => {
+      maybeNotify(!!todayAnswer, voice);
+    };
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [todayAnswer, recipients, settings.reminderEnabled, settings.reminderTime]);
+
+  // 百通の地図から、今日の問いを自分で選ぶ（今日まだ封をしていないとき）
+  const handlePickQuestion = (q: QuestionItem) => {
+    if (todayAnswer) return;
+    const newState: TodayQuestionState = {
+      date: todayDateStr,
+      questionId: q.id,
+      textForRecipient: q.text,
+      why: '自分で選んだ問い',
+      hasChangedToday: true,
+    };
+    saveTodayQuestionState(newState);
+    setTodayState(newState);
+    setCurrentTab('home');
+    setEditingAnswer(null);
+    setIsAnswering(true);
+  };
 
   // 書き足すときは、その回答自身の問いを使う
   const editingQuestion: QuestionItem | null = useMemo(() => {
@@ -117,8 +157,13 @@ export default function App() {
       setIsLoadingQuestion(true);
       try {
         const answeredIds = answers.map((a) => a.questionId);
-        if (forceNew && currentState?.questionId) answeredIds.push(currentState.questionId);
         const recentThemes = answers.slice(0, 5).map((a) => a.theme);
+        if (forceNew && currentState?.questionId) {
+          answeredIds.push(currentState.questionId);
+          // 「別の質問にする」では、いまの問いのテーマを必ず避ける
+          const cur = questionsBank.find((q) => q.id === currentState.questionId);
+          if (cur) recentThemes.unshift(cur.theme);
+        }
         const voice = list.length === 1 ? list[0] : null;
 
         const selected = await apiSelectQuestion(questionsBank, answeredIds, voice, allowDeep, recentThemes);
@@ -188,7 +233,7 @@ export default function App() {
 
   const handleDataReset = () => {
     setRecipients([]);
-    setSettings({ allowDeep: false });
+    setSettings(getSettings());
     setAnswers([]);
     setTodayState(null);
     setIsAnswering(false);
@@ -247,6 +292,7 @@ export default function App() {
                   currentQuestion={currentQuestion}
                   todayAnswer={todayAnswer}
                   streakCount={streakCount}
+                  lastAnswerDate={lastAnswerDate}
                   totalAnswerCount={answers.length}
                   isLoadingQuestion={isLoadingQuestion}
                   onAnswerClick={() => {
@@ -264,7 +310,12 @@ export default function App() {
               )}
 
               {currentTab === 'history' && (
-                <HistoryView answers={answers} recipients={recipients} onDeleteAnswer={handleDeleteAnswer} />
+                <HistoryView
+                  answers={answers}
+                  recipients={recipients}
+                  onDeleteAnswer={handleDeleteAnswer}
+                  onPickQuestion={handlePickQuestion}
+                />
               )}
 
               {currentTab === 'mirror' && <MirrorView answers={answers} />}
@@ -277,6 +328,12 @@ export default function App() {
                 <SettingsView
                   recipients={recipients}
                   allowDeep={settings.allowDeep}
+                  settings={settings}
+                  onUpdateSettings={(patch) => {
+                    const next = { ...settings, ...patch };
+                    saveSettings(next);
+                    setSettings(next);
+                  }}
                   onEditRecipient={() => setIsEditRecipientsOpen(true)}
                   onUpdateDeepToggle={(allowDeep) => {
                     const next = { ...settings, allowDeep };

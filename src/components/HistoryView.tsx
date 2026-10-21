@@ -23,9 +23,11 @@ interface Props {
   recipients: RecipientProfile[];
   onSelectAnswer?: (answer: AnswerItem) => void;
   onDeleteAnswer: (id: string) => void;
+  /** 地図で未回答の問いを選んだ（今日の問いにする） */
+  onPickQuestion?: (q: QuestionItem) => void;
 }
 
-export const HistoryView: React.FC<Props> = ({ answers: allAnswers, recipients, onDeleteAnswer }) => {
+export const HistoryView: React.FC<Props> = ({ answers: allAnswers, recipients, onDeleteAnswer, onPickQuestion }) => {
   const [recipientFilter, setRecipientFilter] = useState<string>('all');
   const answers = recipientFilter === 'all' ? allAnswers : allAnswers.filter((a) => (a.recipientIds || []).includes(recipientFilter));
   const [selectedTheme, setSelectedTheme] = useState<string>('すべて');
@@ -114,7 +116,7 @@ export const HistoryView: React.FC<Props> = ({ answers: allAnswers, recipients, 
       {/* 百通の地図: 問いごとに、答えた分だけ灯りがつく */}
       <div className="washi-card rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[#6E685E]">百通の地図</span>
+          <span className="text-xs font-medium text-[#6E685E]">百通の地図 <span className="text-[10px] text-[#8E877D] font-normal">（空いている問いを押すと、今日の問いにできます）</span></span>
           <span className="text-[11px] text-[#8E877D]">
             {QUESTION_BANK.filter((q) => answers.some((a) => a.questionId === q.id)).length} / {QUESTION_BANK.length} の問いに答えました
           </span>
@@ -133,11 +135,11 @@ export const HistoryView: React.FC<Props> = ({ answers: allAnswers, recipients, 
                         key={q.id}
                         type="button"
                         title={q.text}
-                        onClick={() => ans && setActiveDetailAnswer(ans)}
-                        className={`w-5 h-5 rounded-sm border transition-colors ${
+                        onClick={() => (ans ? setActiveDetailAnswer(ans) : onPickQuestion?.(q))}
+                        className={`w-5 h-5 rounded-sm border transition-colors cursor-pointer ${
                           ans
-                            ? 'bg-[#B5443A] border-[#B5443A] cursor-pointer'
-                            : 'bg-transparent border-[#E0D8CB] cursor-default'
+                            ? 'bg-[#B5443A] border-[#B5443A]'
+                            : 'bg-transparent border-[#E0D8CB] hover:border-[#2B2B2B]'
                         }`}
                       />
                     );

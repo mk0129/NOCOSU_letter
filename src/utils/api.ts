@@ -43,8 +43,8 @@ export async function apiSelectQuestion(
     available = available.filter((q) => q.depth !== 'deep');
   }
 
-  // Avoid same theme 3 days in a row
-  if (recentThemes.length >= 2 && recentThemes[0] === recentThemes[1]) {
+  // 直前のテーマは避ける
+  if (recentThemes.length >= 1) {
     const nonConsecutive = available.filter((q) => q.theme !== recentThemes[0]);
     if (nonConsecutive.length > 0) {
       available = nonConsecutive;

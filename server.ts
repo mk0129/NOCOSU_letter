@@ -49,8 +49,8 @@ app.post('/api/gemini/select-question', async (req, res) => {
       candidates = candidates.filter((q: { depth: string }) => q.depth !== 'deep');
     }
 
-    // Avoid 3-consecutive theme rule if last two are identical
-    if (recentThemes.length >= 2 && recentThemes[0] === recentThemes[1]) {
+    // 直前のテーマは避ける（「別の質問にする」で同じテーマが続くと冷める）。候補が残る限り
+    if (recentThemes.length >= 1) {
       const avoidTheme = recentThemes[0];
       const nonConsecutive = candidates.filter((q: { theme: string }) => q.theme !== avoidTheme);
       if (nonConsecutive.length > 0) {

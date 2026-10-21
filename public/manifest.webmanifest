@@ -1,0 +1,13 @@
+{
+  "name": "NOCOSU",
+  "short_name": "NOCOSU",
+  "description": "毎朝ひとつの問い。あなたの言葉で、大切な人へ。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4EFE6",
+  "theme_color": "#F4EFE6",
+  "lang": "ja",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
