@@ -7,11 +7,18 @@ export type RecipientRelation =
   | 'other';
 
 export interface RecipientProfile {
+  id: string; // 宛先ID（C案: 宛先は1〜3人）
   relation: RecipientRelation;
   name: string; // 呼び方 (例: 「ひなた」「お父さん」「10年後の僕」)
   ageGroup?: string; // 年齢帯 (例: 「小学生」「中高生」「20代」「同年代」「未設定」)
-  allowDeep: boolean; // 「深い質問も含める」初期オフ
+  allowDeep?: boolean; // 互換用（v0.1）。設定は AppSettings.allowDeep に移行
   updatedAt: string;
+}
+
+export const MAX_RECIPIENTS = 3;
+
+export interface AppSettings {
+  allowDeep: boolean; // 「深い質問も含める」初期オフ
 }
 
 export type DepthLevel = 'light' | 'deep';
@@ -26,7 +33,8 @@ export interface QuestionItem {
 export interface TodayQuestionState {
   date: string; // YYYY-MM-DD
   questionId: string;
-  textForRecipient: string;
+  textForRecipient: string; // 宛先が1人のときだけ「その人の声」。それ以外は元の文
+  recipientId?: string; // 声の主（宛先1人のとき）
   why?: string;
   hasChangedToday: boolean; // 1日1回限定
 }
@@ -38,8 +46,9 @@ export interface AnswerItem {
   textForRecipient: string;
   theme: string;
   depth: DepthLevel;
-  recipientName: string;
-  recipientRelation: RecipientRelation;
+  recipientIds: string[]; // 届け先（複数可。封をするときに選ぶ）
+  recipientName: string; // 表示用（呼び名を「・」で連結）
+  recipientRelation: RecipientRelation; // 互換用（先頭の宛先）
   date: string; // YYYY-MM-DD
   createdAt: string; // ISO
   text: string; // 本文（ユーザー自身の言葉）

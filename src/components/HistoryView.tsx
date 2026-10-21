@@ -3,7 +3,8 @@ import { AnswerItem } from '../types';
 import { formatJapaneseDate } from '../utils/storage';
 import { shareOrDownloadAnswerCard } from '../utils/answerCard';
 import questionsData from '../data/questions.json';
-import { QuestionItem } from '../types';
+import { QuestionItem, RecipientProfile } from '../types';
+import sampleLetter from '../data/sample_letter.json';
 
 const QUESTION_BANK: QuestionItem[] = questionsData as QuestionItem[];
 import {
@@ -19,11 +20,14 @@ import {
 
 interface Props {
   answers: AnswerItem[];
+  recipients: RecipientProfile[];
   onSelectAnswer?: (answer: AnswerItem) => void;
   onDeleteAnswer: (id: string) => void;
 }
 
-export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
+export const HistoryView: React.FC<Props> = ({ answers: allAnswers, recipients, onDeleteAnswer }) => {
+  const [recipientFilter, setRecipientFilter] = useState<string>('all');
+  const answers = recipientFilter === 'all' ? allAnswers : allAnswers.filter((a) => (a.recipientIds || []).includes(recipientFilter));
   const [selectedTheme, setSelectedTheme] = useState<string>('すべて');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDetailAnswer, setActiveDetailAnswer] = useState<AnswerItem | null>(null);
@@ -78,6 +82,34 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
           日々の問いにあなたが答えてきた記録です（{answers.length}通）
         </p>
       </div>
+
+      {/* 宛先で絞る */}
+      {recipients.length > 1 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          {[{ id: 'all', name: '全員' }, ...recipients].map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setRecipientFilter(r.id)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs border cursor-pointer ${
+                recipientFilter === r.id ? 'border-[#2B2B2B] text-[#2B2B2B] font-medium' : 'border-[#E0D8CB] text-[#6E685E]'
+              }`}
+            >
+              {r.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 束が空のとき: つくった人から */}
+      {allAnswers.length === 0 && (
+        <div className="washi-card rounded-2xl p-5 space-y-3">
+          <span className="text-[11px] text-[#8E877D] tracking-widest">つくった人から</span>
+          <h3 className="font-hand text-lg text-[#2B2B2B]">{sampleLetter.question}</h3>
+          <p className="text-sm font-mincho text-[#2B2B2B] leading-[1.9] whitespace-pre-wrap">{sampleLetter.body}</p>
+          <p className="text-right font-hand text-sm text-[#524E48]">{sampleLetter.from}</p>
+        </div>
+      )}
 
       {/* 百通の地図: 問いごとに、答えた分だけ灯りがつく */}
       <div className="washi-card rounded-2xl p-4 space-y-3">

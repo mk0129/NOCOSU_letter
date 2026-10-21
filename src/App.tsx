@@ -4,13 +4,16 @@ import {
   QuestionItem,
   TodayQuestionState,
   AnswerItem,
+  AppSettings,
 } from './types';
 import questionsData from './data/questions.json';
 import firstQuestionsData from './data/first_questions.json';
-import { FirstLetterPreview } from './components/FirstLetterPreview';
 import {
-  getRecipientProfile,
-  saveRecipientProfile,
+  getRecipients,
+  saveRecipients,
+  getSettings,
+  saveSettings,
+  migrateIfNeeded,
   getAnswers,
   saveAnswer,
   deleteAnswer as removeAnswer,
@@ -28,25 +31,27 @@ import { HistoryView } from './components/HistoryView';
 import { MirrorView } from './components/MirrorView';
 import { LetterView } from './components/LetterView';
 import { SettingsView } from './components/SettingsView';
+import { FirstLetterPreview } from './components/FirstLetterPreview';
 
 const questionsBank: QuestionItem[] = questionsData as QuestionItem[];
 const firstQuestions: QuestionItem[] = firstQuestionsData as QuestionItem[];
 
 type FirstRunStage = 'intro' | 'answer' | 'preview' | null;
 
+// v0.1（宛先1人）のデータがあれば、C案（宛先複数）へ移す
+migrateIfNeeded();
 
 export default function App() {
-  // Recipient profile
-  const [recipient, setRecipient] = useState<RecipientProfile | null>(() =>
-    getRecipientProfile()
-  );
-  // 設定からの宛先編集モーダル
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
-  const [isEditRecipientModal, setIsEditRecipientModal] = useState(false);
+  // 宛先（1〜3人）と設定
+  const [recipients, setRecipients] = useState<RecipientProfile[]>(() => getRecipients());
+  const [settings, setSettings] = useState<AppSettings>(() => getSettings());
 
-  // 初回体験の段階（宛先が未設定のあいだだけ使う）
+  // 設定からの宛先編集モーダル
+  const [isEditRecipientsOpen, setIsEditRecipientsOpen] = useState(false);
+
+  // 初回体験: 4コマ → 宛先 → 軽い一問 → 手紙プレビュー
   const [firstRunStage, setFirstRunStage] = useState<FirstRunStage>(() =>
-    getRecipientProfile() ? null : 'intro'
+    getRecipients().length > 0 ? null : 'intro'
   );
   const [firstQuestion] = useState<QuestionItem>(
     () => firstQuestions[Math.floor(Math.random() * firstQuestions.length)]
@@ -65,24 +70,21 @@ export default function App() {
   );
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
 
-  // Today date string
   const todayDateStr = getTodayDateString();
 
-  // Find question object by ID
   const currentQuestion = useMemo(() => {
     if (!todayState?.questionId) return null;
     return questionsBank.find((q) => q.id === todayState.questionId) || null;
   }, [todayState]);
 
-  // Answer for today (if already answered)
-  const todayAnswer = useMemo(() => {
-    return answers.find((a) => a.date === todayDateStr) || null;
-  }, [answers, todayDateStr]);
+  const todayAnswer = useMemo(
+    () => answers.find((a) => a.date === todayDateStr) || null,
+    [answers, todayDateStr]
+  );
 
-  // Streaks
   const streakCount = useMemo(() => calculateStreak(answers), [answers]);
 
-  // 書き足すときは、その回答自身の問いを使う（今日の封筒の問いとは別のことがある）
+  // 書き足すときは、その回答自身の問いを使う
   const editingQuestion: QuestionItem | null = useMemo(() => {
     if (!editingAnswer) return null;
     return {
@@ -102,9 +104,10 @@ export default function App() {
     };
   }, [editingAnswer]);
 
-  // Load or refresh today's question
+  // 今日の問いを用意する。宛先が1人のときだけ「その人の声」で言い換える
   const ensureTodayQuestion = useCallback(
-    async (targetRecipient: RecipientProfile, forceNew = false) => {
+    async (list: RecipientProfile[], allowDeep: boolean, forceNew = false) => {
+      if (list.length === 0) return;
       const currentState = getTodayQuestionState();
       if (!forceNew && currentState && currentState.date === todayDateStr) {
         setTodayState(currentState);
@@ -114,29 +117,20 @@ export default function App() {
       setIsLoadingQuestion(true);
       try {
         const answeredIds = answers.map((a) => a.questionId);
-        // Exclude current question if forceNew is requested
-        if (forceNew && currentState?.questionId) {
-          answeredIds.push(currentState.questionId);
-        }
-
+        if (forceNew && currentState?.questionId) answeredIds.push(currentState.questionId);
         const recentThemes = answers.slice(0, 5).map((a) => a.theme);
+        const voice = list.length === 1 ? list[0] : null;
 
-        const selected = await apiSelectQuestion(
-          questionsBank,
-          answeredIds,
-          targetRecipient,
-          targetRecipient.allowDeep,
-          recentThemes
-        );
+        const selected = await apiSelectQuestion(questionsBank, answeredIds, voice, allowDeep, recentThemes);
 
         const newState: TodayQuestionState = {
           date: todayDateStr,
           questionId: selected.questionId,
           textForRecipient: selected.textForRecipient,
+          recipientId: voice?.id,
           why: selected.why,
           hasChangedToday: forceNew,
         };
-
         saveTodayQuestionState(newState);
         setTodayState(newState);
       } catch (e) {
@@ -148,27 +142,23 @@ export default function App() {
     [answers, todayDateStr]
   );
 
-  // Initialize today's question on mount if recipient exists
   useEffect(() => {
-    if (recipient) {
-      ensureTodayQuestion(recipient);
+    if (recipients.length > 0 && firstRunStage === null) {
+      ensureTodayQuestion(recipients, settings.allowDeep);
     }
-  }, [recipient, ensureTodayQuestion]);
+  }, [recipients, settings.allowDeep, firstRunStage, ensureTodayQuestion]);
 
-  // Handle Onboarding Save
-  const handleSaveProfile = (profile: RecipientProfile) => {
-    saveRecipientProfile(profile);
-    setRecipient(profile);
-    setIsOnboardingOpen(false);
-    setIsEditRecipientModal(false);
-
+  // 宛先を保存（初回 / 設定）
+  const handleSaveRecipients = (list: RecipientProfile[]) => {
+    saveRecipients(list);
+    setRecipients(list);
+    setIsEditRecipientsOpen(false);
     if (firstRunStage === 'intro') {
-      // 宛先が決まった。軽い一問から始める（今日の封筒はその後）
       setFirstRunStage('answer');
       return;
     }
-    // Refresh question with new recipient profile
-    ensureTodayQuestion(profile);
+    // 宛先が変わったら、今日の問いを取り直す（声の主が変わる）
+    ensureTodayQuestion(list, settings.allowDeep, true);
   };
 
   // 初回体験: 一通目を封じた → 手紙の体裁で見せる
@@ -179,13 +169,11 @@ export default function App() {
     setFirstRunStage('preview');
   };
 
-  // Change question (1 time per day)
   const handleChangeQuestion = () => {
-    if (!recipient || todayState?.hasChangedToday) return;
-    ensureTodayQuestion(recipient, true);
+    if (recipients.length === 0 || todayState?.hasChangedToday) return;
+    ensureTodayQuestion(recipients, settings.allowDeep, true);
   };
 
-  // Handle Save Answer
   const handleSaveAnswer = (saved: AnswerItem) => {
     saveAnswer(saved);
     setAnswers(getAnswers());
@@ -193,15 +181,14 @@ export default function App() {
     setEditingAnswer(null);
   };
 
-  // Handle Delete Answer
   const handleDeleteAnswer = (id: string) => {
     removeAnswer(id);
     setAnswers(getAnswers());
   };
 
-  // Handle Reset All Data
   const handleDataReset = () => {
-    setRecipient(null);
+    setRecipients([]);
+    setSettings({ allowDeep: false });
     setAnswers([]);
     setTodayState(null);
     setIsAnswering(false);
@@ -210,41 +197,38 @@ export default function App() {
     setFirstRunStage('intro');
   };
 
-  // Handle Data Imported
   const handleDataImported = () => {
-    const prof = getRecipientProfile();
-    setRecipient(prof);
+    migrateIfNeeded();
+    const list = getRecipients();
+    setRecipients(list);
+    setSettings(getSettings());
     setAnswers(getAnswers());
     setTodayState(getTodayQuestionState());
     setCurrentTab('home');
-    if (prof) setFirstRunStage(null);
+    if (list.length > 0) setFirstRunStage(null);
   };
+
+  const hasRecipients = recipients.length > 0;
 
   return (
     <div className="min-h-screen paper-noise flex justify-center py-0 md:py-6 text-[#2B2B2B]">
-      {/* Mobile-first journal container */}
       <div className="w-full max-w-md min-h-screen md:min-h-[92vh] md:rounded-3xl paper-noise border-0 md:border md:border-[#E0D8CB] shadow-none flex flex-col relative overflow-hidden">
-        {/* Main Content Area */}
         <main className="flex-1 px-4 md:px-6 pt-5 pb-6 overflow-y-auto">
-          {firstRunStage === 'answer' && recipient ? (
+          {firstRunStage === 'answer' && hasRecipients ? (
             <AnswerView
-              recipient={recipient}
+              recipients={recipients}
               question={firstQuestion}
               todayState={null}
               existingAnswer={null}
               onSave={handleFirstAnswerSaved}
-              onCancel={() => {
-                // 書かずに進んでもよい。今日の封筒へ
-                setFirstRunStage(null);
-                ensureTodayQuestion(recipient);
-              }}
+              onCancel={() => setFirstRunStage(null)}
               skipFollowUp
               firstRun
             />
-          ) : isAnswering && (editingQuestion || currentQuestion) && recipient ? (
+          ) : isAnswering && (editingQuestion || currentQuestion) && hasRecipients ? (
             <AnswerView
               key={editingAnswer?.id || 'today'}
-              recipient={recipient}
+              recipients={recipients}
               question={(editingQuestion || currentQuestion)!}
               todayState={editingAnswer ? editingTodayState : todayState}
               existingAnswer={editingAnswer}
@@ -256,9 +240,9 @@ export default function App() {
             />
           ) : (
             <>
-              {currentTab === 'home' && recipient && (
+              {currentTab === 'home' && hasRecipients && (
                 <HomeView
-                  recipient={recipient}
+                  recipients={recipients}
                   todayState={todayState}
                   currentQuestion={currentQuestion}
                   todayAnswer={todayAnswer}
@@ -280,31 +264,24 @@ export default function App() {
               )}
 
               {currentTab === 'history' && (
-                <HistoryView
-                  answers={answers}
-                  onDeleteAnswer={handleDeleteAnswer}
-                />
+                <HistoryView answers={answers} recipients={recipients} onDeleteAnswer={handleDeleteAnswer} />
               )}
 
-              {currentTab === 'mirror' && (
-                <MirrorView answers={answers} />
+              {currentTab === 'mirror' && <MirrorView answers={answers} />}
+
+              {currentTab === 'letter' && hasRecipients && (
+                <LetterView answers={answers} recipients={recipients} />
               )}
 
-              {currentTab === 'letter' && recipient && (
-                <LetterView answers={answers} recipient={recipient} />
-              )}
-
-              {currentTab === 'settings' && recipient && (
+              {currentTab === 'settings' && hasRecipients && (
                 <SettingsView
-                  recipient={recipient}
-                  onEditRecipient={() => {
-                    setIsEditRecipientModal(true);
-                    setIsOnboardingOpen(true);
-                  }}
+                  recipients={recipients}
+                  allowDeep={settings.allowDeep}
+                  onEditRecipient={() => setIsEditRecipientsOpen(true)}
                   onUpdateDeepToggle={(allowDeep) => {
-                    const updated = { ...recipient, allowDeep, updatedAt: new Date().toISOString() };
-                    saveRecipientProfile(updated);
-                    setRecipient(updated);
+                    const next = { ...settings, allowDeep };
+                    saveSettings(next);
+                    setSettings(next);
                   }}
                   onDataReset={handleDataReset}
                   onDataImported={handleDataImported}
@@ -314,7 +291,6 @@ export default function App() {
           )}
         </main>
 
-        {/* Bottom Navigation */}
         {!isAnswering && firstRunStage === null && (
           <BottomNav
             currentTab={currentTab}
@@ -325,41 +301,29 @@ export default function App() {
           />
         )}
 
-        {/* 初回体験: 見本の一通 → 一通目を書く */}
+        {/* 初回: 4コマ → 誰に届けますか */}
         {firstRunStage === 'intro' && (
-          <OnboardingModal
-            key="first"
-            isOpen
-            mode="first"
-            onSave={handleSaveProfile}
-          />
+          <OnboardingModal key="first" isOpen mode="first" onSave={handleSaveRecipients} />
         )}
 
-        {/* 初回体験: 手紙の体裁で見せる */}
-        {firstRunStage === 'preview' && firstAnswer && recipient && (
+        {/* 初回: 一通目を手紙の体裁で */}
+        {firstRunStage === 'preview' && firstAnswer && hasRecipients && (
           <FirstLetterPreview
             answer={firstAnswer}
-            recipient={recipient}
-            onDone={() => {
-              setFirstRunStage(null);
-              ensureTodayQuestion(recipient);
-            }}
+            recipients={recipients}
+            onDone={() => setFirstRunStage(null)}
           />
         )}
 
         {/* 設定からの宛先編集 */}
-        {isOnboardingOpen && (
+        {isEditRecipientsOpen && (
           <OnboardingModal
             key="edit"
             isOpen
             mode="edit"
-            initialProfile={recipient}
-            isEditMode={isEditRecipientModal}
-            onSave={handleSaveProfile}
-            onClose={() => {
-              setIsOnboardingOpen(false);
-              setIsEditRecipientModal(false);
-            }}
+            initialRecipients={recipients}
+            onSave={handleSaveRecipients}
+            onClose={() => setIsEditRecipientsOpen(false)}
           />
         )}
       </div>

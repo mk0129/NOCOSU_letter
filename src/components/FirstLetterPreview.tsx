@@ -6,7 +6,7 @@ import { Share2, ArrowRight } from 'lucide-react';
 
 interface Props {
   answer: AnswerItem;
-  recipient: RecipientProfile;
+  recipients: RecipientProfile[];
   onDone: () => void;
 }
 
@@ -23,13 +23,17 @@ function whenToRead(recipient: RecipientProfile): string {
 }
 
 /** 一通目を封じた直後に、手紙の体裁で見せる */
-export const FirstLetterPreview: React.FC<Props> = ({ answer, recipient, onDone }) => {
+export const FirstLetterPreview: React.FC<Props> = ({ answer, recipients, onDone }) => {
+  const chosen = recipients.filter((r) => (answer.recipientIds || []).includes(r.id));
+  const recipient: RecipientProfile = chosen[0] || recipients[0];
+  const toLabel = chosen.map((r) => r.name).join('・') || recipient.name;
+  const voiceName = recipients.length === 1 ? recipients[0].name : '聞き手';
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      await shareOrDownloadAnswerCard({ ...answer, recipientName: recipient.name });
+      await shareOrDownloadAnswerCard({ ...answer, recipientName: toLabel });
     } catch (e) {
       console.error(e);
     } finally {
@@ -45,7 +49,7 @@ export const FirstLetterPreview: React.FC<Props> = ({ answer, recipient, onDone 
         {/* 手紙 */}
         <div className="relative bg-[#FCFAF6] border border-[#E0D8CB] rounded-2xl p-5 space-y-4">
           <div className="flex items-start justify-between">
-            <span className="text-[11px] text-[#8E877D] tracking-widest pt-2">{recipient.name} へ</span>
+            <span className="text-[11px] text-[#8E877D] tracking-widest pt-2">{toLabel} へ</span>
             <div className="w-14 h-14 rounded-full border border-[#2B2B2B] flex flex-col items-center justify-center text-[#2B2B2B]">
               <span className="text-[9px] font-medium">{formatPostmarkDate(answer.date)}</span>
               <span className="w-6 border-t border-[#2B2B2B] my-0.5" />
@@ -64,7 +68,7 @@ export const FirstLetterPreview: React.FC<Props> = ({ answer, recipient, onDone 
         </div>
 
         <p className="text-xs text-[#6E685E] text-center leading-relaxed">
-          一通目がのこりました。明日の朝、{recipient.name}から次の問いが届きます。
+          一通目がのこりました。明日の朝、{voiceName === '聞き手' ? '次の問い' : `${voiceName}から次の問い`}が届きます。
         </p>
 
         <div className="space-y-2.5">

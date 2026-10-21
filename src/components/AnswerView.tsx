@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 interface Props {
-  recipient: RecipientProfile;
+  recipients: RecipientProfile[];
   question: QuestionItem;
   todayState: TodayQuestionState | null;
   existingAnswer?: AnswerItem | null;
@@ -35,7 +35,7 @@ interface Props {
 }
 
 export const AnswerView: React.FC<Props> = ({
-  recipient,
+  recipients,
   question,
   todayState,
   existingAnswer,
@@ -44,6 +44,16 @@ export const AnswerView: React.FC<Props> = ({
   skipFollowUp = false,
   firstRun = false,
 }) => {
+  // 宛先が1人なら、その人の声で。複数なら「聞き手」
+  const single = recipients.length === 1 ? recipients[0] : null;
+  const voiceName = single ? single.name : '聞き手';
+  const recipient = single || recipients[0] || null;
+  // 届け先（既定: 全員）。既存回答を書き足すときはその回答の届け先
+  const [recipientIds, setRecipientIds] = useState<string[]>(() =>
+    existingAnswer?.recipientIds?.length ? existingAnswer.recipientIds : recipients.map((r) => r.id)
+  );
+  const toggleRecipient = (id: string) =>
+    setRecipientIds((prev) => (prev.includes(id) ? (prev.length > 1 ? prev.filter((x) => x !== id) : prev) : [...prev, id]));
   // Main Answer state
   const [text, setText] = useState(existingAnswer?.text || '');
   const [isRecording, setIsRecording] = useState(false);
@@ -196,7 +206,7 @@ export const AnswerView: React.FC<Props> = ({
     try {
       const transcript = turns.map((d) => `問い: ${d.q}\n答え: ${d.a}`).join('\n\n');
       const context = transcript ? `${text.trim()}\n\n【これまでの往復】\n${transcript}` : text.trim();
-      const followUp = await apiFetchFollowUp(question.text, context, recipient);
+      const followUp = await apiFetchFollowUp(question.text, context, single);
       setFollowUpQuestion(followUp);
     } catch {
       setFollowUpQuestion('もう少し、詳しく聞かせてください。');
@@ -227,8 +237,9 @@ export const AnswerView: React.FC<Props> = ({
       textForRecipient: todayState?.textForRecipient || question.text,
       theme: question.theme,
       depth: question.depth,
-      recipientName: recipient.name,
-      recipientRelation: recipient.relation,
+      recipientIds,
+      recipientName: recipients.filter((r) => recipientIds.includes(r.id)).map((r) => r.name).join('・') || recipient?.name || '大切な人',
+      recipientRelation: recipient?.relation || 'other',
       date: todayState?.date || getTodayDateString(),
       createdAt: existingAnswer?.createdAt || new Date().toISOString(),
       text: text.trim(),
@@ -277,7 +288,7 @@ export const AnswerView: React.FC<Props> = ({
       <div className="washi-card rounded-2xl p-6 space-y-3">
         <div className="flex items-center justify-between text-xs">
           {!firstRun && (<span className="px-2.5 py-0.5 rounded-full bg-[#EFE9DC] text-[#524E48] font-medium">{question.theme}</span>)}
-          {!firstRun && <span className="text-[#8E877D]">宛先: {recipient.name}</span>}
+          {!firstRun && single && <span className="text-[#8E877D]">宛先: {single.name}</span>}
         </div>
 
         <div className="space-y-1.5">
@@ -285,7 +296,7 @@ export const AnswerView: React.FC<Props> = ({
             {firstRun
               ? 'はじめの一通'
               : todayState?.textForRecipient && todayState.textForRecipient !== question.text
-                ? `${recipient.name}からの問い`
+                ? `${voiceName}からの問い`
                 : '今日の問い'}
           </span>
           <h2 className="font-hand text-[1.5rem] font-normal text-[#2B2B2B] leading-relaxed">
@@ -308,7 +319,7 @@ export const AnswerView: React.FC<Props> = ({
                 setText(e.target.value);
                 if (transcribeError) setTranscribeError('');
               }}
-              placeholder={firstRun ? '思いつくままに。上手に書こうとせず、普段の言葉で。短くて大丈夫です...' : `${recipient.name}へ向けて、思いつくままに。上手に書こうとせず、あなたの普段の言葉で大丈夫です...`}
+              placeholder={firstRun ? '思いつくままに。上手に書こうとせず、普段の言葉で。短くて大丈夫です...' : `思いつくままに。上手に書こうとせず、あなたの普段の言葉で大丈夫です...`}
               className="w-full p-5 bg-[#FAF7F0] border border-[#E0D8CB] rounded-2xl text-[#2B2B2B] placeholder-[#A49E93] font-mincho text-base leading-relaxed focus:outline-hidden focus:border-[#2B2B2B] transition-all resize-y"
             />
 
@@ -364,6 +375,32 @@ export const AnswerView: React.FC<Props> = ({
             </span>
           </div>
 
+          {/* 届け先（宛先が複数のときだけ） */}
+          {recipients.length > 1 && !firstRun && (
+            <div className="space-y-2">
+              <span className="text-[11px] text-[#8E877D] tracking-wide block">届ける相手</span>
+              <div className="flex flex-wrap gap-1.5">
+                {recipients.map((r) => {
+                  const on = recipientIds.includes(r.id);
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => toggleRecipient(r.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs border transition-all cursor-pointer ${
+                        on
+                          ? 'border-[#2B2B2B] bg-[#EFE9DC] text-[#2B2B2B]'
+                          : 'border-[#E0D8CB] bg-transparent text-[#6E685E] hover:border-[#2B2B2B]/50'
+                      }`}
+                    >
+                      {r.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Seal / Submit Button */}
           <div className="pt-2">
             <button
@@ -405,7 +442,7 @@ export const AnswerView: React.FC<Props> = ({
               {dialogue.map((d, i) => (
                 <div key={i} className="space-y-1.5">
                   <p className="text-sm font-hand text-[#524E48] leading-relaxed pl-1">
-                    <span className="text-[10px] text-[#8E877D] mr-2">{recipient.name}</span>
+                    <span className="text-[10px] text-[#8E877D] mr-2">{voiceName}</span>
                     {d.q}
                   </p>
                   <p className="text-sm font-mincho text-[#2B2B2B] leading-relaxed whitespace-pre-wrap pl-4 border-l border-[#E0D8CB]">
@@ -421,8 +458,8 @@ export const AnswerView: React.FC<Props> = ({
             <div className="flex items-center justify-between text-xs text-[#8E877D]">
               <span>
                 {dialogue.length === 0
-                  ? `封をしたあと、${recipient.name}がもう一つ聞いてきました`
-                  : `${recipient.name}が、さらに聞いてきました`}
+                  ? `封をしたあと、${voiceName}がもう一つ聞いてきました`
+                  : `${voiceName}が、さらに聞いてきました`}
               </span>
               <span>{dialogue.length + 1} / {MAX_TURNS}</span>
             </div>
@@ -430,7 +467,7 @@ export const AnswerView: React.FC<Props> = ({
             {isGeneratingFollowUp && !followUpQuestion ? (
               <div className="flex items-center gap-2 text-sm text-[#8E877D] font-mincho py-2">
                 <Loader2 className="w-4 h-4 animate-spin text-[#2B2B2B]" />
-                <span>{recipient.name}が、あなたの言葉を読んでいます…</span>
+                <span>{voiceName}が、あなたの言葉を読んでいます…</span>
               </div>
             ) : (
               <h3 className="text-xl font-hand text-[#2B2B2B] leading-relaxed">{followUpQuestion}</h3>

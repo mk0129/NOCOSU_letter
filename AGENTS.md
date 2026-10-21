@@ -24,7 +24,7 @@
 
 ## 3. データスキーマ（先に固める。UIより優先）
 ```ts
-Recipient    { id, label, relation: 'child'|'partner'|'parent'|'friend'|'future_me'|'other', ageBand?, createdAt }  // 1〜3人
+Recipient(RecipientProfile) { id, name, relation: 'child'|'partner'|'parent'|'friend'|'future_me'|'other', ageBand?, createdAt }  // 1〜3人
 Question     { id, theme, depth: 'light'|'deep', text }                     // 静的JSON。Geminiは新規作成しない
 TodayQuestion{ date, questionId, textForRecipient?, recipientId?, hasChangedToday }  // 声つきは宛先1人のときだけ
 Answer       { id, questionId, questionText, textForRecipient?, theme, depth,
@@ -34,7 +34,7 @@ Mirror       { generatedAt, items: {label, quote(原文完全一致), answerId}[
 Letter       { id, createdAt, title, recipientId, sections: {heading, answerId}[], answerIds }
 Trustee      { name, note?, updatedAt }
 ```
-- 宛先モデルは **C案**（問いは一つ、届け先は封をするときに複数選ぶ）。※承認待ち。承認前は単一宛先のまま
+- 宛先モデルは **C案**（問いは一つ、届け先は封をするときに複数選ぶ）。2026-10-21 承認・実装済み。v0.1 の単一宛先データは起動時に `migrateIfNeeded()` で移行
 - 鏡の quote は `answer.text.includes(quote)` をサーバーとクライアントの両方で検証。落ちたものは表示しない
 - 手紙の編纂は answerId と見出しだけ返す。本文は返さない・触らない
 
@@ -42,7 +42,7 @@ Trustee      { name, note?, updatedAt }
 - 色: 背景 #F4EFE6 / カード #FAF7F0 / 墨 #2B2B2B / 線 #E0D8CB / 朱 #B5443A（封緘と「今日」だけ）。グラデーション禁止、影禁止、線は1px
 - 比喩は「封筒・便箋・束・封緘・消印」で統一。説明文より絵と動作で伝える
 - 文言: 急がせない。「答えなくてもいい」「今日はここまで」を常に出す。「病気」「死」「終活」「エンディング」は出さない（深い質問の設定説明を除く）
-- Empty State: 空の画面に無機質な文を出さない。束が空なら「つくった人の三通」（本物の答え。`src/data/`）
+- Empty State: 空の画面に無機質な文を出さない。束が空なら「つくった人から」の手紙（`src/data/sample_letter.json`）。将来は「つくった人の三通」（本物の答え）
 - Loading: スピナーでなく輪郭（スケルトン）。追い質問は画面を先に進め、裏で取る
 - 1画面1アクション。スマホ縦持ち基準、max-w-md
 

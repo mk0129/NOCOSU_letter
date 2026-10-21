@@ -16,7 +16,7 @@ import {
   getSolarTerm, getTrustee } from '../utils/storage';
 
 interface Props {
-  recipient: RecipientProfile;
+  recipients: RecipientProfile[];
   todayState: TodayQuestionState | null;
   currentQuestion: QuestionItem | null;
   todayAnswer: AnswerItem | null;
@@ -29,7 +29,7 @@ interface Props {
 }
 
 export const HomeView: React.FC<Props> = ({
-  recipient,
+  recipients,
   todayState,
   currentQuestion,
   todayAnswer,
@@ -39,6 +39,9 @@ export const HomeView: React.FC<Props> = ({
   onChangeQuestionClick,
   onEditTodayAnswer,
 }) => {
+  const single = recipients.length === 1 ? recipients[0] : null;
+  const voiceName = single ? single.name : null;
+  const recipientLabel = recipients.map((r) => r.name).join('・') || '大切な人';
   const [isOpened, setIsOpened] = useState(false);
   const [showAnsweredPreview, setShowAnsweredPreview] = useState(false);
 
@@ -70,10 +73,10 @@ export const HomeView: React.FC<Props> = ({
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#FAF7F0] border border-[#E0D8CB] rounded-xl text-xs text-[#524E48]">
         <div className="flex items-center gap-2">
           <span>
-            宛先: <strong className="text-[#2B2B2B] font-medium">{recipient.name}</strong>
+            宛先: <strong className="text-[#2B2B2B] font-medium">{recipientLabel}</strong>
           </span>
-          {recipient.ageGroup && (
-            <span className="text-[#8E877D]">（{recipient.ageGroup}）</span>
+          {single?.ageGroup && (
+            <span className="text-[#8E877D]">（{single.ageGroup}）</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -226,7 +229,7 @@ export const HomeView: React.FC<Props> = ({
             {/* Bottom-Left From Recipient */}
             <div className="relative z-20 flex items-end justify-between pt-2">
               <span className="font-hand text-base text-[#2B2B2B] tracking-wide">
-                {recipient.name} より
+                {voiceName ? `${voiceName} より` : ''}
               </span>
               <span className="text-[11px] text-[#8E877D]">
                 {showAnsweredPreview ? 'タップして封を閉じる' : todayAnswer.theme}
@@ -247,7 +250,7 @@ export const HomeView: React.FC<Props> = ({
                 <div className="washi-card rounded-2xl p-5 space-y-3">
                   <div className="space-y-1">
                     <span className="text-xs text-[#8E877D] block">
-                      {recipient.name}からの問い
+                      {voiceName ? `${voiceName}からの問い` : '今日の問い'}
                     </span>
                     <h3 className="font-hand text-[1.5rem] font-normal text-[#2B2B2B] leading-relaxed">
                       {todayAnswer.textForRecipient || todayAnswer.questionText}
@@ -459,7 +462,7 @@ export const HomeView: React.FC<Props> = ({
                         {/* Bottom-Left: {宛先の呼び名} より */}
                         <div className="flex items-end justify-between pt-2">
                           <span className="font-hand text-base text-[#2B2B2B] tracking-wide">
-                            {recipient.name} より
+                            {voiceName ? `${voiceName} より` : ''}
                           </span>
                           <span className="text-[11px] text-[#8E877D]">
                             {currentQuestion?.theme || '日々のこと'}
@@ -508,7 +511,7 @@ export const HomeView: React.FC<Props> = ({
                         <div className="space-y-2">
                           <span className="text-xs text-[#8E877D] tracking-wide block">
                             {todayState?.textForRecipient && todayState.textForRecipient !== currentQuestion?.text
-                              ? `${recipient.name}からの問い`
+                              ? `${voiceName || '聞き手'}からの問い`
                               : '今日の問い'}
                           </span>
                           <h2 className="font-hand text-[1.5rem] font-normal text-[#2B2B2B] leading-relaxed">
@@ -551,7 +554,7 @@ export const HomeView: React.FC<Props> = ({
                   {isOpened && (
                     <div className="relative z-30 flex items-center justify-between pt-2 px-1">
                       <span className="font-hand text-sm text-[#524E48] tracking-wide">
-                        {recipient.name} より
+                        {voiceName ? `${voiceName} より` : ''}
                       </span>
                       <span className="text-[11px] text-[#8E877D]">
                         答えなくても大丈夫です

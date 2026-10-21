@@ -148,7 +148,8 @@ JSON形式で返してください。
     if (validCandidate) {
       return res.json({
         questionId: validCandidate.id,
-        textForRecipient: parsed.textForRecipient || validCandidate.text,
+        // 宛先が1人のときだけ「その人の声」。宛先なし（複数）のときは元の文のまま
+        textForRecipient: recipient ? parsed.textForRecipient || validCandidate.text : validCandidate.text,
         why: parsed.why || '今日あなたに届いた問いです。',
       });
     } else {

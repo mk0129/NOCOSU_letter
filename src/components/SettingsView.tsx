@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { RecipientProfile } from '../types';
+import sampleLetter from '../data/sample_letter.json';
 import {
   exportAllData,
   importAllData,
@@ -53,7 +54,8 @@ export const SUPPORT_RESOURCES: SupportResource[] = [
 ];
 
 interface Props {
-  recipient: RecipientProfile;
+  recipients: RecipientProfile[];
+  allowDeep: boolean;
   onEditRecipient: () => void;
   onUpdateDeepToggle: (allowDeep: boolean) => void;
   onDataReset: () => void;
@@ -61,7 +63,8 @@ interface Props {
 }
 
 export const SettingsView: React.FC<Props> = ({
-  recipient,
+  recipients,
+  allowDeep,
   onEditRecipient,
   onUpdateDeepToggle,
   onDataReset,
@@ -168,19 +171,22 @@ export const SettingsView: React.FC<Props> = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#EFE9DC] border border-[#E0D8CB] flex items-center justify-center text-[#2B2B2B]">
-            <Heart className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-mincho font-medium text-[#2B2B2B]">
-              {recipient.name}
-            </h3>
-            <p className="text-xs text-[#8E877D]">
-              間柄: {recipient.relation}
-              {recipient.ageGroup ? ` / 年齢帯: ${recipient.ageGroup}` : ''}
-            </p>
-          </div>
+        <div className="space-y-2">
+          {recipients.map((r) => (
+            <div key={r.id} className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#EFE9DC] border border-[#E0D8CB] flex items-center justify-center text-[#2B2B2B]">
+                <Heart className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-base font-mincho font-medium text-[#2B2B2B]">{r.name}</h3>
+                <p className="text-xs text-[#8E877D]">
+                  間柄: {r.relation}
+                  {r.ageGroup ? ` / 年齢帯: ${r.ageGroup}` : ''}
+                </p>
+              </div>
+            </div>
+          ))}
+          <p className="text-[11px] text-[#8E877D] pt-1">宛先は3人まで。届ける相手は一通ごとに選べます。</p>
         </div>
       </div>
 
@@ -198,15 +204,15 @@ export const SettingsView: React.FC<Props> = ({
           <button
             type="button"
             role="switch"
-            aria-checked={recipient.allowDeep}
-            onClick={() => onUpdateDeepToggle(!recipient.allowDeep)}
+            aria-checked={allowDeep}
+            onClick={() => onUpdateDeepToggle(!allowDeep)}
             className={`shrink-0 w-12 h-6.5 rounded-full transition-colors relative focus:outline-hidden cursor-pointer ${
-              recipient.allowDeep ? 'bg-[#2B2B2B]' : 'bg-[#D6CFC3]'
+              allowDeep ? 'bg-[#2B2B2B]' : 'bg-[#D6CFC3]'
             }`}
           >
             <span
               className={`inline-block w-5 h-5 rounded-full bg-white transform transition-transform absolute top-0.5 ${
-                recipient.allowDeep ? 'translate-x-6 left-0.5' : 'translate-x-0.5 left-0.5'
+                allowDeep ? 'translate-x-6 left-0.5' : 'translate-x-0.5 left-0.5'
               }`}
             />
           </button>
@@ -220,7 +226,7 @@ export const SettingsView: React.FC<Props> = ({
           {isTrusteeSaved && <span className="text-xs text-[#2B2B2B] font-medium">保存しました</span>}
         </div>
         <p className="text-xs text-[#6E685E] leading-relaxed">
-          あなたに何かあったとき、この手紙を{recipient.name}に渡す人。決めておくと、言葉はあなたより長く残ります。
+          あなたに何かあったとき、この手紙を{recipients.map((r) => r.name).join('・') || '大切な人'}に渡す人。決めておくと、言葉はあなたより長く残ります。
         </p>
         <input
           type="text"
@@ -344,6 +350,18 @@ export const SettingsView: React.FC<Props> = ({
           />
         </div>
       </div>
+
+      {/* つくった人から */}
+      <details className="washi-card rounded-2xl p-5 space-y-3">
+        <summary className="text-xs font-medium text-[#6E685E] tracking-wider uppercase cursor-pointer">
+          つくった人から
+        </summary>
+        <div className="pt-3 space-y-3">
+          <h3 className="font-hand text-lg text-[#2B2B2B]">{sampleLetter.question}</h3>
+          <p className="text-sm font-mincho text-[#2B2B2B] leading-[1.9] whitespace-pre-wrap">{sampleLetter.body}</p>
+          <p className="text-right font-hand text-sm text-[#524E48]">{sampleLetter.from}</p>
+        </div>
+      </details>
 
       {/* Support Hotlines Section */}
       <div className="washi-card rounded-2xl p-5 space-y-3.5">

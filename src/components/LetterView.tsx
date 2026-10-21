@@ -33,14 +33,21 @@ import {
 
 interface Props {
   answers: AnswerItem[];
-  recipient: RecipientProfile;
+  recipients: RecipientProfile[];
 }
 
-export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
+export const LetterView: React.FC<Props> = ({ answers, recipients }) => {
+  // 宛先で絞る（全員 / 各宛先）
+  const [filterId, setFilterId] = useState<string>(recipients.length === 1 ? recipients[0].id : 'all');
+  const recipient: RecipientProfile | null =
+    filterId === 'all' ? (recipients.length === 1 ? recipients[0] : null) : recipients.find((r) => r.id === filterId) || null;
+  const visibleAnswers =
+    filterId === 'all' ? answers : answers.filter((a) => (a.recipientIds || []).includes(filterId));
+  const letterTo = recipient ? recipient.name : recipients.map((r) => r.name).join('・') || '大切な人';
   // Step 1: Selection, Step 2: Compiled Letter Preview
   const [step, setStep] = useState<'select' | 'preview'>('select');
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
-    answers.slice(0, 5).map((a) => a.id)
+    visibleAnswers.slice(0, 5).map((a) => a.id)
   );
   const [isCompiling, setIsCompiling] = useState(false);
   const [compiledLetter, setCompiledLetter] = useState<CompiledLetter | null>(null);
@@ -58,10 +65,10 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.length === answers.length) {
+    if (selectedIds.length === visibleAnswers.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(answers.map((a) => a.id));
+      setSelectedIds(visibleAnswers.map((a) => a.id));
     }
   };
 
@@ -86,7 +93,7 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
         id: `letter-${Date.now()}`,
         createdAt: new Date().toISOString(),
         title: result.title,
-        recipientName: recipient.name,
+        recipientName: letterTo,
         sections: result.sections,
         answerIds: selectedIds,
       };
@@ -200,6 +207,27 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
             </div>
           ) : (
             <>
+              {/* 宛先で絞る */}
+              {recipients.length > 1 && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {[{ id: 'all', name: '全員' }, ...recipients].map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => {
+                        setFilterId(r.id);
+                        setSelectedIds([]);
+                      }}
+                      className={`shrink-0 px-3 py-1.5 rounded-full text-xs border cursor-pointer ${
+                        filterId === r.id ? 'border-[#2B2B2B] text-[#2B2B2B] font-medium' : 'border-[#E0D8CB] text-[#6E685E]'
+                      }`}
+                    >
+                      {r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Selection Bar */}
               <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#FAF7F0] border border-[#E0D8CB] text-xs">
                 <button
@@ -207,12 +235,12 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
                   onClick={handleSelectAll}
                   className="flex items-center gap-2 text-[#2B2B2B] font-medium hover:text-[#524E48] cursor-pointer"
                 >
-                  {selectedIds.length === answers.length ? (
+                  {selectedIds.length === visibleAnswers.length ? (
                     <CheckSquare className="w-4 h-4 text-[#2B2B2B]" />
                   ) : (
                     <Square className="w-4 h-4 text-[#8E877D]" />
                   )}
-                  <span>すべて選択（{selectedIds.length} / {answers.length}件）</span>
+                  <span>すべて選択（{selectedIds.length} / {visibleAnswers.length}件）</span>
                 </button>
 
                 <span className="text-[#8E877D]">3つ以上の選択をおすすめします</span>
@@ -227,7 +255,7 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
 
               {/* Answers Check List */}
               <div className="space-y-2.5">
-                {answers.map((ans) => {
+                {visibleAnswers.map((ans) => {
                   const isChecked = selectedIds.includes(ans.id);
                   return (
                     <div
@@ -363,7 +391,7 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
               {/* Letter Title & Header */}
               <div className="text-center space-y-3 pb-6 border-b border-[#E0D8CB]">
                 <span className="text-xs text-[#8E877D] tracking-widest block font-sans">
-                  {recipient.name} へ
+                  {letterTo} へ
                 </span>
                 <h1 className="text-2xl md:text-3xl font-mincho font-medium text-[#2B2B2B] leading-tight">
                   {compiledLetter.title}

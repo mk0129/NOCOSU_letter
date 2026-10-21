@@ -5,10 +5,13 @@ import {
   MirrorGeneration,
   CompiledLetter,
   Trustee,
+  AppSettings,
 } from '../types';
 
 const STORAGE_KEYS = {
-  RECIPIENT: 'nocosu_recipient_profile',
+  RECIPIENT: 'nocosu_recipient_profile', // v0.1 互換（移行元）
+  RECIPIENTS: 'nocosu_recipients',
+  SETTINGS: 'nocosu_settings',
   ANSWERS: 'nocosu_answers_list',
   TODAY_QUESTION: 'nocosu_today_question_state',
   MIRROR_CACHE: 'nocosu_mirror_generation',
@@ -17,23 +20,95 @@ const STORAGE_KEYS = {
   TRUSTEE: 'nocosu_trustee',
 };
 
-// Recipient profile
-export function getRecipientProfile(): RecipientProfile | null {
+// 宛先（1〜3人）
+export function getRecipients(): RecipientProfile[] {
   try {
-    const data = localStorage.getItem(STORAGE_KEYS.RECIPIENT);
-    return data ? JSON.parse(data) : null;
+    const data = localStorage.getItem(STORAGE_KEYS.RECIPIENTS);
+    return data ? (JSON.parse(data) as RecipientProfile[]) : [];
   } catch (e) {
-    console.error('Error reading recipient profile', e);
-    return null;
+    console.error('Error reading recipients', e);
+    return [];
   }
 }
 
-export function saveRecipientProfile(profile: RecipientProfile): void {
+export function saveRecipients(list: RecipientProfile[]): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.RECIPIENT, JSON.stringify(profile));
+    localStorage.setItem(STORAGE_KEYS.RECIPIENTS, JSON.stringify(list));
   } catch (e) {
-    console.error('Error saving recipient profile', e);
+    console.error('Error saving recipients', e);
   }
+}
+
+export function newRecipientId(): string {
+  return `r-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+// 互換: 先頭の宛先（v0.1 のコードが呼ぶ）
+export function getRecipientProfile(): RecipientProfile | null {
+  return getRecipients()[0] || null;
+}
+
+// 設定
+export function getSettings(): AppSettings {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    return data ? { allowDeep: false, ...(JSON.parse(data) as Partial<AppSettings>) } : { allowDeep: false };
+  } catch (e) {
+    console.error('Error reading settings', e);
+    return { allowDeep: false };
+  }
+}
+
+export function saveSettings(s: AppSettings): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(s));
+  } catch (e) {
+    console.error('Error saving settings', e);
+  }
+}
+
+// v0.1（宛先1人）→ C案（宛先複数）への移行。起動時に一度だけ
+export function migrateIfNeeded(): void {
+  try {
+    const hasList = localStorage.getItem(STORAGE_KEYS.RECIPIENTS) !== null;
+    const legacyRaw = localStorage.getItem(STORAGE_KEYS.RECIPIENT);
+    if (!hasList && legacyRaw) {
+      const legacy = JSON.parse(legacyRaw) as Partial<RecipientProfile> & { allowDeep?: boolean };
+      const id = newRecipientId();
+      const migrated: RecipientProfile = {
+        id,
+        relation: legacy.relation || 'other',
+        name: legacy.name || '大切な人',
+        ageGroup: legacy.ageGroup,
+        updatedAt: legacy.updatedAt || new Date().toISOString(),
+      };
+      saveRecipients([migrated]);
+      saveSettings({ allowDeep: !!legacy.allowDeep });
+      localStorage.removeItem(STORAGE_KEYS.RECIPIENT);
+    }
+    // 回答に届け先が無ければ、全宛先へ
+    const list = getRecipients();
+    if (list.length > 0) {
+      const answers = getAnswers();
+      let changed = false;
+      for (const a of answers) {
+        if (!Array.isArray(a.recipientIds) || a.recipientIds.length === 0) {
+          a.recipientIds = list.map((r) => r.id);
+          a.recipientName = list.map((r) => r.name).join('・');
+          changed = true;
+        }
+      }
+      if (changed) localStorage.setItem(STORAGE_KEYS.ANSWERS, JSON.stringify(answers));
+    }
+  } catch (e) {
+    console.error('Migration failed', e);
+  }
+}
+
+/** 届け先の呼び名を「・」で連結 */
+export function recipientNames(list: RecipientProfile[], ids?: string[]): string {
+  const chosen = ids && ids.length ? list.filter((r) => ids.includes(r.id)) : list;
+  return chosen.map((r) => r.name).join('・') || '大切な人';
 }
 
 // Answers
@@ -292,11 +367,13 @@ export function exportAllData(): string {
   const data = {
     version: '1.0',
     exportedAt: new Date().toISOString(),
-    recipient: getRecipientProfile(),
     answers: getAnswers(),
     mirrorCache: getMirrorCache(),
     letters: getCompiledLetters(),
     bookletOrderUrl: getBookletOrderUrl(),
+    recipients: getRecipients(),
+    settings: getSettings(),
+    trustee: getTrustee(),
   };
   return JSON.stringify(data, null, 2);
 }
@@ -304,7 +381,10 @@ export function exportAllData(): string {
 export function importAllData(jsonStr: string): boolean {
   try {
     const data = JSON.parse(jsonStr);
-    if (data.recipient) saveRecipientProfile(data.recipient);
+    if (Array.isArray(data.recipients)) saveRecipients(data.recipients);
+    else if (data.recipient) localStorage.setItem(STORAGE_KEYS.RECIPIENT, JSON.stringify(data.recipient)); // v0.1 形式 → 起動時に移行
+    if (data.settings) saveSettings({ allowDeep: !!data.settings.allowDeep });
+    if (data.trustee) saveTrustee(data.trustee);
     if (Array.isArray(data.answers)) {
       localStorage.setItem(STORAGE_KEYS.ANSWERS, JSON.stringify(data.answers));
     }
@@ -324,6 +404,9 @@ export function importAllData(jsonStr: string): boolean {
 
 export function clearAllData(): void {
   localStorage.removeItem(STORAGE_KEYS.RECIPIENT);
+  localStorage.removeItem(STORAGE_KEYS.RECIPIENTS);
+  localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+  localStorage.removeItem(STORAGE_KEYS.TRUSTEE);
   localStorage.removeItem(STORAGE_KEYS.ANSWERS);
   localStorage.removeItem(STORAGE_KEYS.TODAY_QUESTION);
   localStorage.removeItem(STORAGE_KEYS.MIRROR_CACHE);
