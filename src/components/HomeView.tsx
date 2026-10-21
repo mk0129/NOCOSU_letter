@@ -596,104 +596,282 @@ export const HomeView: React.FC<Props> = ({
       )}
 
       {/* 手紙の束 (Stack of Letters) below the envelope */}
-      <div className="washi-card rounded-2xl p-4 flex items-center gap-4">
-        {/* Visual Stack of Paper Sheets (max 12 distinct sheets + thickness lines beyond 12) */}
-        <div className="shrink-0 w-16 flex items-center justify-center">
+      <div className="washi-card rounded-2xl p-5 flex items-center gap-5">
+        {/* Visual Stack of Paper Sheets with 3D perspective & depth */}
+        <div className="shrink-0 w-24 flex items-center justify-center">
           {totalAnswerCount === 0 ? (
             <svg
-              width="52"
-              height="36"
-              viewBox="0 0 52 36"
+              width="88"
+              height="64"
+              viewBox="0 0 88 64"
               className="overflow-visible"
-              aria-hidden="true"
+              aria-label="まだ手紙はありません"
             >
-              <rect
-                x="6"
-                y="8"
-                width="40"
-                height="22"
-                rx="2"
+              {/* Soft base shadow */}
+              <polygon
+                points="16,44 58,34 74,48 32,58"
+                fill="#EAE2D3"
+                opacity="0.45"
+              />
+              {/* Dashed empty first letter outline in perspective */}
+              <polygon
+                points="14,40 56,30 72,44 30,54"
+                fill="#FAF7F0"
+                fillOpacity="0.5"
+                stroke="#C8BFA8"
+                strokeWidth="1.1"
+                strokeDasharray="3 2.5"
+              />
+              {/* Faint envelope flap hint */}
+              <polyline
+                points="14,40 45,41 56,30"
                 fill="none"
                 stroke="#D6CFC3"
-                strokeWidth="1"
+                strokeWidth="0.9"
                 strokeDasharray="2 2"
               />
             </svg>
           ) : (
-            <svg
-              width="56"
-              height={Math.max(40, 24 + visibleSheets * 2 + Math.ceil(extraThicknessLines * 0.6))}
-              viewBox={`0 0 56 ${Math.max(40, 24 + visibleSheets * 2 + Math.ceil(extraThicknessLines * 0.6))}`}
-              className="overflow-visible"
-              aria-label={`${totalAnswerCount}通の手紙の束`}
-            >
-              {/* Extra thickness lines at the bottom when count > 12 */}
-              {Array.from({ length: extraThicknessLines }).map((_, i) => {
-                const yPos = 22 + visibleSheets * 2 + (extraThicknessLines - i) * 0.6;
-                const xOffset = ((i % 3) - 1) * 0.6;
-                return (
-                  <line
-                    key={`thick-${i}`}
-                    x1={8 + xOffset}
-                    y1={yPos}
-                    x2={48 + xOffset}
-                    y2={yPos}
-                    stroke="#C8BFA8"
-                    strokeWidth="0.7"
-                  />
-                );
-              })}
+            (() => {
+              const stackBaseHeight =
+                visibleSheets * 2.4 + Math.ceil(extraThicknessLines * 0.55);
+              const svgHeight = Math.max(68, Math.ceil(46 + stackBaseHeight));
+              const baseBottomY = svgHeight - 10;
 
-              {/* Up to 12 slightly offset overlapping paper sheets (drawn bottom to top) */}
-              {Array.from({ length: visibleSheets }).map((_, idx) => {
-                const reverseIdx = visibleSheets - 1 - idx;
-                const offsets = [-1.5, 1.0, -0.8, 1.4, -0.4, 0.9, -1.2, 0.6, -0.9, 1.2, -0.5, 0.3];
-                const dx = offsets[idx % offsets.length];
-                const y = 4 + reverseIdx * 2;
-                return (
-                  <g key={`sheet-${idx}`}>
-                    <rect
-                      x={8 + dx}
-                      y={y}
-                      width="40"
-                      height="18"
-                      rx="1.5"
-                      fill="#FAF7F0"
-                      stroke="#2B2B2B"
-                      strokeOpacity="0.45"
-                      strokeWidth="0.8"
-                    />
-                    {idx === visibleSheets - 1 && (
-                      <line
-                        x1={14 + dx}
-                        y1={y + 6}
-                        x2={34 + dx}
-                        y2={y + 6}
-                        stroke="#E0D8CB"
-                        strokeWidth="0.8"
+              const sheetTransforms = [
+                { dx: 0, dy: 0, rot: -1.2 },
+                { dx: 1.4, dy: -0.3, rot: 1.5 },
+                { dx: -1.1, dy: 0.2, rot: -2.4 },
+                { dx: 0.9, dy: -0.2, rot: 0.8 },
+                { dx: -1.5, dy: 0.3, rot: 2.1 },
+                { dx: 1.2, dy: 0, rot: -1.6 },
+                { dx: -0.7, dy: -0.2, rot: 1.1 },
+                { dx: 1.6, dy: 0.2, rot: -2.0 },
+                { dx: -1.2, dy: 0, rot: 1.7 },
+                { dx: 0.6, dy: -0.3, rot: -0.9 },
+                { dx: -0.9, dy: 0.2, rot: 1.3 },
+                { dx: 0.3, dy: 0, rot: -0.6 },
+              ];
+
+              const topSheetY =
+                baseBottomY -
+                extraThicknessLines * 0.55 -
+                (visibleSheets - 1) * 2.4;
+
+              return (
+                <svg
+                  width="92"
+                  height={svgHeight}
+                  viewBox={`0 0 92 ${svgHeight}`}
+                  className="overflow-visible"
+                  aria-label={`${totalAnswerCount}通の手紙の束`}
+                >
+                  {/* Ambient ground shadow beneath the stack */}
+                  <polygon
+                    points={`14,${baseBottomY - 8} 60,${baseBottomY - 19} 80,${baseBottomY - 3} 34,${baseBottomY + 8}`}
+                    fill="#DFD6C5"
+                    opacity="0.7"
+                  />
+
+                  {/* Compressed thickness block & edge lines when count > 12 */}
+                  {Array.from({ length: extraThicknessLines }).map((_, i) => {
+                    const layerY = baseBottomY - i * 0.55;
+                    const jitter = ((i % 3) - 1) * 0.4;
+                    return (
+                      <g key={`thick-${i}`}>
+                        <line
+                          x1={14 + jitter}
+                          y1={layerY - 11}
+                          x2={33 + jitter}
+                          y2={layerY + 4}
+                          stroke={i % 2 === 0 ? '#C8BFA8' : '#DCD4C4'}
+                          strokeWidth="0.65"
+                        />
+                        <line
+                          x1={33 + jitter}
+                          y1={layerY + 4}
+                          x2={77 + jitter}
+                          y2={layerY - 7}
+                          stroke={i % 2 === 0 ? '#BEB49E' : '#D5CCB9'}
+                          strokeWidth="0.65"
+                        />
+                      </g>
+                    );
+                  })}
+
+                  {/* Up to 12 distinct overlapping angled letter sheets (drawn bottom to top) */}
+                  {Array.from({ length: visibleSheets }).map((_, idx) => {
+                    const layerY =
+                      baseBottomY -
+                      extraThicknessLines * 0.55 -
+                      idx * 2.4;
+                    const t = sheetTransforms[idx % sheetTransforms.length];
+                    const isTop = idx === visibleSheets - 1;
+                    const fillPalette = ['#FAF7F0', '#F6F1E6', '#FCF9F3'];
+                    const sheetFill = isTop
+                      ? '#FCFAF5'
+                      : fillPalette[idx % fillPalette.length];
+
+                    return (
+                      <motion.g
+                        key={`sheet-${idx}`}
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.45,
+                          delay: Math.min(idx * 0.035, 0.35),
+                          ease: [0.16, 1, 0.3, 1],
+                        }}
+                        transform={`translate(${t.dx}, ${t.dy}) rotate(${t.rot}, 46, ${layerY - 6})`}
+                      >
+                        <polygon
+                          points={`14,${layerY - 10.2} 58,${layerY - 21.2} 77,${layerY - 6.2} 33,${layerY + 4.8}`}
+                          fill="#D6CCB8"
+                          opacity="0.45"
+                        />
+                        <polygon
+                          points={`14,${layerY - 11} 58,${layerY - 22} 77,${layerY - 7} 33,${layerY + 4}`}
+                          fill={sheetFill}
+                          stroke="#2B2B2B"
+                          strokeOpacity={isTop ? '0.6' : '0.32'}
+                          strokeWidth={isTop ? '0.9' : '0.7'}
+                          strokeLinejoin="round"
+                        />
+                        {isTop && (
+                          <>
+                            <polyline
+                              points={`14,${layerY - 11} 47,${layerY - 9} 58,${layerY - 22}`}
+                              fill="none"
+                              stroke="#D8D0C1"
+                              strokeWidth="0.75"
+                            />
+                            <line
+                              x1="28"
+                              y1={layerY - 8}
+                              x2="54"
+                              y2={layerY - 14.5}
+                              stroke="#8E877D"
+                              strokeOpacity="0.45"
+                              strokeWidth="0.75"
+                              strokeLinecap="round"
+                            />
+                            <line
+                              x1="32"
+                              y1={layerY - 4}
+                              x2="50"
+                              y2={layerY - 8.5}
+                              stroke="#8E877D"
+                              strokeOpacity="0.35"
+                              strokeWidth="0.75"
+                              strokeLinecap="round"
+                            />
+                          </>
+                        )}
+                      </motion.g>
+                    );
+                  })}
+
+                  {/* Vermilion Koyori String wrapping the bundle when 3+ letters */}
+                  {totalAnswerCount >= 3 && (
+                    <g>
+                      <path
+                        d={`M 34,${topSheetY - 16.5} L 54,${topSheetY - 1.2} L 54,${baseBottomY - 1.5}`}
+                        fill="none"
+                        stroke="#B5443A"
+                        strokeWidth="1.15"
+                        strokeOpacity="0.85"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
+                      <path
+                        d={`M 41,${topSheetY - 9} C 43,${topSheetY - 11.5} 47,${topSheetY - 11.5} 45,${topSheetY - 8.5} C 43,${topSheetY - 6} 47,${topSheetY - 6} 48.5,${topSheetY - 8.5}`}
+                        fill="none"
+                        stroke="#B5443A"
+                        strokeWidth="1.1"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  )}
+
+                  {totalAnswerCount > 0 && totalAnswerCount < 3 && (
+                    <circle
+                      cx="45"
+                      cy={topSheetY - 9.5}
+                      r="1.6"
+                      fill="#B5443A"
+                      opacity="0.85"
+                    />
+                  )}
+                </svg>
+              );
+            })()
           )}
         </div>
 
-        {/* Stack Copy */}
-        <div className="flex-1 min-w-0">
+        {/* Stack Copy & Progress Message */}
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[11px] font-sans text-[#8E877D] tracking-wider">
+              手紙の束
+            </span>
+            {totalAnswerCount > 0 && (
+              <span className="text-[11px] font-mincho text-[#6E685E]">
+                全 {totalAnswerCount} 通
+              </span>
+            )}
+          </div>
+
           {totalAnswerCount === 0 ? (
-            <p className="text-xs font-mincho text-[#524E48] leading-relaxed">
-              まだ一通も。今日の封筒から
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs font-mincho text-[#524E48] leading-relaxed">
+                まだ一通も。今日の封筒から
+              </p>
+              <p className="text-[11px] text-[#8E877D] leading-relaxed">
+                一通ずつ重ねた言葉が、ここに束ねられていきます。
+              </p>
+            </div>
           ) : totalAnswerCount < 52 ? (
-            <p className="text-xs font-mincho text-[#2B2B2B] leading-relaxed">
-              {totalAnswerCount}通目まで。あと{52 - totalAnswerCount}通で一冊になります
-            </p>
+            <div className="space-y-1.5">
+              <p className="text-xs font-mincho text-[#2B2B2B] leading-relaxed">
+                {totalAnswerCount}通目まで。あと{52 - totalAnswerCount}通で一冊になります
+              </p>
+              <p className="text-[11px] text-[#6E685E] leading-relaxed">
+                {totalAnswerCount === 1
+                  ? '最初の一通が重なりました。無理のない歩幅で大丈夫です。'
+                  : totalAnswerCount < 10
+                  ? '少しずつ紙の厚みが生まれはじめています。'
+                  : totalAnswerCount < 26
+                  ? '季節の移ろいとともに、言葉の束が育っています。'
+                  : '一冊の折り返しを過ぎ、確かな重みになってきました。'}
+              </p>
+              <div className="w-full h-[3px] bg-[#E8E0D2] rounded-full overflow-hidden mt-1">
+                <div
+                  className="h-full bg-[#2B2B2B]/70 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, Math.max(4, Math.round((totalAnswerCount / 52) * 100)))}%`,
+                  }}
+                />
+              </div>
+            </div>
           ) : (
-            <p className="text-xs font-mincho text-[#2B2B2B] leading-relaxed">
-              一冊ぶんが揃いました。百通まであと{Math.max(0, 100 - totalAnswerCount)}通
-            </p>
+            <div className="space-y-1.5">
+              <p className="text-xs font-mincho text-[#2B2B2B] leading-relaxed">
+                一冊ぶんが揃いました。百通まであと{Math.max(0, 100 - totalAnswerCount)}通
+              </p>
+              <p className="text-[11px] text-[#6E685E] leading-relaxed">
+                {totalAnswerCount >= 100
+                  ? '百通の言葉が重なりました。いつでも手紙として束ねられます。'
+                  : 'いつでも「束ねる」から一冊の手紙に仕立てることができます。'}
+              </p>
+              <div className="w-full h-[3px] bg-[#E8E0D2] rounded-full overflow-hidden mt-1">
+                <div
+                  className="h-full bg-[#B5443A]/80 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, Math.round((totalAnswerCount / 100) * 100))}%`,
+                  }}
+                />
+              </div>
+            </div>
           )}
         </div>
       </div>
