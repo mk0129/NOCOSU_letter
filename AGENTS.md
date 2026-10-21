@@ -50,6 +50,8 @@ RPC: create_circle(name, display_name) / join_circle(code, display_name)  -- sec
 - 文言: 急がせない。「答えなくてもいい」「今日はここまで」を常に出す。「病気」「死」「終活」「エンディング」は出さない（深い質問の設定説明を除く）
 - Empty State: 空の画面に無機質な文を出さない。束が空なら「つくった人から」の手紙（`src/data/sample_letter.json`）。将来は「つくった人の三通」（本物の答え）
 - Loading: スピナーでなく輪郭（スケルトン）。追い質問は画面を先に進め、裏で取る
+- **画面は一つ**（タイムライン）。上に今日の問い、下に家族の手紙。タブは作らない。残りは右上の丸（自分のページ）に置く
+- 認証は匿名（端末に紐づく）。家族は招待リンク `/?join=CODE` を開き呼び名を入れるだけ。メール・パスワードを求めない
 - 1画面1アクション。スマホ縦持ち基準、max-w-md
 
 ## 5. 作業ルール
@@ -59,7 +61,12 @@ RPC: create_circle(name, display_name) / join_circle(code, display_name)  -- sec
 - 本文（answer.text）を変換・整形するコードを書かない。grep で `text.replace` / `trim()` 以外の加工が無いことを確認
 - 新しい依存を足す前に人間に聞く
 
-## 6. 確認コマンド
+## 6. 公開（Vercel）
+- Vite 静的 + `api/index.ts`（Express を serverless で）。`vercel.json` が `/api/*` を振る
+- 環境変数: `GEMINI_API_KEY`（Vercel のダッシュボードで設定）。Supabase の URL と公開キーはコードに埋め込み
+- Supabase 側: Authentication → Sign In / Providers → **Anonymous sign-ins を有効**。Site URL は公開URLに
+
+## 7. 確認コマンド
 ```bash
 npm install --legacy-peer-deps
 npm run dev        # http://localhost:3000
