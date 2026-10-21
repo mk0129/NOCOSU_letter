@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RecipientProfile, QuestionItem, TodayQuestionState, AnswerItem, AppSettings, DialogueTurn } from './types';
+import {
+  RecipientProfile,
+  QuestionItem,
+  TodayQuestionState,
+  AnswerItem,
+  AppSettings,
+} from './types';
 import questionsData from './data/questions.json';
+import firstQuestionsData from './data/first_questions.json';
 import {
   getRecipients,
   saveRecipients,
@@ -9,155 +16,172 @@ import {
   migrateIfNeeded,
   getAnswers,
   saveAnswer,
+  deleteAnswer as removeAnswer,
   getTodayQuestionState,
   saveTodayQuestionState,
+  calculateStreak,
   getTodayDateString,
-  getProfile,
-  saveProfile,
-  getMirrorCache,
-  saveMirrorCache,
 } from './utils/storage';
-import { apiSelectQuestion, apiGenerateMirror } from './utils/api';
+import { apiSelectQuestion } from './utils/api';
 import { maybeNotify } from './utils/reminder';
-import {
-  circleAvailable,
-  ensureSession,
-  joinCodeFromUrl,
-  circleNameByCode,
-  createCircle,
-  joinCircle,
-  myCircles,
-  circleMembers,
-  sharedAnswersOf,
-  readsFor,
-  markRead,
-  shareAnswer,
-  Circle,
-  CircleMember,
-  SharedAnswer,
-  AnswerRead,
-} from './utils/circle';
-import { Timeline, FeedItem, FeedAnswer } from './components/Timeline';
-import { Welcome } from './components/Welcome';
-import { MeSheet } from './components/MeSheet';
 import { OnboardingModal } from './components/OnboardingModal';
+import { BottomNav, NavTab } from './components/BottomNav';
+import { HomeView } from './components/HomeView';
+import { AnswerView } from './components/AnswerView';
+import { HistoryView } from './components/HistoryView';
+import { MirrorView } from './components/MirrorView';
+import { LetterView } from './components/LetterView';
+import { SettingsView } from './components/SettingsView';
+import { FirstLetterPreview } from './components/FirstLetterPreview';
+import { CircleView } from './components/CircleView';
 
 const questionsBank: QuestionItem[] = questionsData as QuestionItem[];
+const firstQuestions: QuestionItem[] = firstQuestionsData as QuestionItem[];
 
-// v0.1（宛先1人）のデータがあれば移す
+type FirstRunStage = 'intro' | 'answer' | 'preview' | null;
+
+// v0.1（宛先1人）のデータがあれば、C案（宛先複数）へ移す
 migrateIfNeeded();
 
 export default function App() {
-  // 自分
-  const [profile, setProfile] = useState(() => getProfile());
+  // 宛先（1〜3人）と設定
   const [recipients, setRecipients] = useState<RecipientProfile[]>(() => getRecipients());
   const [settings, setSettings] = useState<AppSettings>(() => getSettings());
+
+  // 設定からの宛先編集モーダル
+  const [isEditRecipientsOpen, setIsEditRecipientsOpen] = useState(false);
+
+  // 初回体験: 4コマ → 宛先 → 軽い一問 → 手紙プレビュー
+  const [firstRunStage, setFirstRunStage] = useState<FirstRunStage>(() =>
+    getRecipients().length > 0 ? null : 'intro'
+  );
+  const [firstQuestion] = useState<QuestionItem>(
+    () => firstQuestions[Math.floor(Math.random() * firstQuestions.length)]
+  );
+  const [firstAnswer, setFirstAnswer] = useState<AnswerItem | null>(null);
+
+  // Navigation & Active View
+  // メールのリンクから戻ってきたときは「輪」を開く（/?tab=circle）
+  const [currentTab, setCurrentTab] = useState<NavTab>(() => {
+    try {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      return t === 'circle' ? 'circle' : 'home';
+    } catch {
+      return 'home';
+    }
+  });
+  const [isAnswering, setIsAnswering] = useState(false);
+  const [editingAnswer, setEditingAnswer] = useState<AnswerItem | null>(null);
+
+  // Answers & Today state
   const [answers, setAnswers] = useState<AnswerItem[]>(() => getAnswers());
-  const [todayState, setTodayState] = useState<TodayQuestionState | null>(() => getTodayQuestionState());
+  const [todayState, setTodayState] = useState<TodayQuestionState | null>(() =>
+    getTodayQuestionState()
+  );
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
-  const [mirror, setMirror] = useState(() => getMirrorCache());
-
-  // 家族の輪
-  const [userId, setUserId] = useState<string | null>(null);
-  const [circle, setCircle] = useState<Circle | null>(null);
-  const [members, setMembers] = useState<CircleMember[]>([]);
-  const [shared, setShared] = useState<SharedAnswer[]>([]);
-  const [reads, setReads] = useState<AnswerRead[]>([]);
-  const [circleError, setCircleError] = useState('');
-
-  // 招待リンク
-  const [joinCode] = useState<string | null>(() => joinCodeFromUrl());
-  const [inviteName, setInviteName] = useState<string | null>(null);
-  const [joining, setJoining] = useState(false);
-  const [joinError, setJoinError] = useState('');
-
-  // 画面
-  const [meOpen, setMeOpen] = useState(false);
-  const [showMineOnly, setShowMineOnly] = useState(false);
-  const [editRecipients, setEditRecipients] = useState(false);
 
   const todayDateStr = getTodayDateString();
-  const myName = profile?.displayName || 'わたし';
 
-  const currentQuestion = useMemo(
-    () => (todayState?.questionId ? questionsBank.find((q) => q.id === todayState.questionId) || null : null),
-    [todayState]
+  const currentQuestion = useMemo(() => {
+    if (!todayState?.questionId) return null;
+    return questionsBank.find((q) => q.id === todayState.questionId) || null;
+  }, [todayState]);
+
+  const todayAnswer = useMemo(
+    () => answers.find((a) => a.date === todayDateStr) || null,
+    [answers, todayDateStr]
   );
-  const todayAnswer = useMemo(() => answers.find((a) => a.date === todayDateStr) || null, [answers, todayDateStr]);
-  const lastAnswerDate = useMemo(() => (answers.length ? [...answers].map((a) => a.date).sort().reverse()[0] : null), [answers]);
-  const daysSinceLast = lastAnswerDate ? Math.floor((Date.now() - new Date(lastAnswerDate + 'T00:00:00').getTime()) / 86400000) : null;
 
-  // 問いの声: 宛先が1人で、輪に入っていないときだけ
-  const voiceRecipient = !circle && recipients.length === 1 ? recipients[0] : null;
+  const streakCount = useMemo(() => calculateStreak(answers), [answers]);
+  const lastAnswerDate = useMemo(
+    () => (answers.length ? [...answers].map((a) => a.date).sort().reverse()[0] : null),
+    [answers]
+  );
 
-  // ---- 輪の読み込み
-  const refreshCircle = useCallback(async (c: Circle) => {
-    const [m, s] = await Promise.all([circleMembers(c.id), sharedAnswersOf(c.id)]);
-    setMembers(m);
-    setShared(s);
-    setReads(await readsFor(s.map((x) => x.id)));
-  }, []);
-
-  const loadCircle = useCallback(async () => {
-    if (!circleAvailable) return;
-    const cs = await myCircles();
-    if (cs.length > 0) {
-      setCircle(cs[0]);
-      await refreshCircle(cs[0]);
-    }
-  }, [refreshCircle]);
-
-  // 起動: ログイン済みなら輪を読む。招待コードがあれば輪の名前を取る
+  // 朝の通知: 開いている間、1分ごとに条件を見る（閉じている間は .ics が保険）
   useEffect(() => {
-    (async () => {
-      if (!circleAvailable) return;
-      const s = await ensureSession();
-      if ('userId' in s) {
-        setUserId(s.userId);
-        if (joinCode) setInviteName((await circleNameByCode(joinCode)) || '家族の輪');
-        await loadCircle();
-      } else if (joinCode) {
-        setJoinError(s.error);
-        setInviteName('家族の輪');
-      }
-    })();
-  }, [joinCode, loadCircle]);
-
-  // 輪の更新（開いている間は1分ごと）
-  useEffect(() => {
-    if (!circle) return;
-    const id = window.setInterval(() => refreshCircle(circle), 60_000);
-    const onVis = () => document.visibilityState === 'visible' && refreshCircle(circle);
+    const voice = recipients.length === 1 ? recipients[0].name : null;
+    const tick = () => {
+      maybeNotify(!!todayAnswer, voice);
+    };
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
     document.addEventListener('visibilitychange', onVis);
     return () => {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [circle, refreshCircle]);
+  }, [todayAnswer, recipients, settings.reminderEnabled, settings.reminderTime]);
 
-  // ---- 今日の問い
+  // 百通の地図から、今日の問いを自分で選ぶ（今日まだ封をしていないとき）
+  const handlePickQuestion = (q: QuestionItem) => {
+    if (todayAnswer) return;
+    const newState: TodayQuestionState = {
+      date: todayDateStr,
+      questionId: q.id,
+      textForRecipient: q.text,
+      why: '自分で選んだ問い',
+      hasChangedToday: true,
+    };
+    saveTodayQuestionState(newState);
+    setTodayState(newState);
+    setCurrentTab('home');
+    setEditingAnswer(null);
+    setIsAnswering(true);
+  };
+
+  // 書き足すときは、その回答自身の問いを使う
+  const editingQuestion: QuestionItem | null = useMemo(() => {
+    if (!editingAnswer) return null;
+    return {
+      id: editingAnswer.questionId,
+      theme: editingAnswer.theme,
+      depth: editingAnswer.depth,
+      text: editingAnswer.questionText,
+    };
+  }, [editingAnswer]);
+  const editingTodayState: TodayQuestionState | null = useMemo(() => {
+    if (!editingAnswer) return null;
+    return {
+      date: editingAnswer.date,
+      questionId: editingAnswer.questionId,
+      textForRecipient: editingAnswer.textForRecipient,
+      hasChangedToday: false,
+    };
+  }, [editingAnswer]);
+
+  // 今日の問いを用意する。宛先が1人のときだけ「その人の声」で言い換える
   const ensureTodayQuestion = useCallback(
-    async (forceNew = false) => {
+    async (list: RecipientProfile[], allowDeep: boolean, forceNew = false) => {
+      if (list.length === 0) return;
       const currentState = getTodayQuestionState();
       if (!forceNew && currentState && currentState.date === todayDateStr) {
         setTodayState(currentState);
         return;
       }
+
       setIsLoadingQuestion(true);
       try {
         const answeredIds = answers.map((a) => a.questionId);
         const recentThemes = answers.slice(0, 5).map((a) => a.theme);
         if (forceNew && currentState?.questionId) {
           answeredIds.push(currentState.questionId);
+          // 「別の質問にする」では、いまの問いのテーマを必ず避ける
           const cur = questionsBank.find((q) => q.id === currentState.questionId);
           if (cur) recentThemes.unshift(cur.theme);
         }
-        const selected = await apiSelectQuestion(questionsBank, answeredIds, voiceRecipient, settings.allowDeep, recentThemes);
+        const voice = list.length === 1 ? list[0] : null;
+
+        const selected = await apiSelectQuestion(questionsBank, answeredIds, voice, allowDeep, recentThemes);
+
         const newState: TodayQuestionState = {
           date: todayDateStr,
           questionId: selected.questionId,
           textForRecipient: selected.textForRecipient,
-          recipientId: voiceRecipient?.id,
+          recipientId: voice?.id,
           why: selected.why,
           hasChangedToday: forceNew,
         };
@@ -169,271 +193,205 @@ export default function App() {
         setIsLoadingQuestion(false);
       }
     },
-    [answers, todayDateStr, voiceRecipient, settings.allowDeep]
+    [answers, todayDateStr]
   );
 
   useEffect(() => {
-    if (profile) ensureTodayQuestion();
-  }, [profile, ensureTodayQuestion]);
-
-  // 朝の通知
-  useEffect(() => {
-    const tick = () => maybeNotify(!!todayAnswer, voiceRecipient?.name || null);
-    tick();
-    const id = window.setInterval(tick, 60_000);
-    return () => window.clearInterval(id);
-  }, [todayAnswer, voiceRecipient, settings.reminderEnabled, settings.reminderTime]);
-
-  // 鏡: 自分の答えが10通ごとに一枚
-  useEffect(() => {
-    if (answers.length === 0 || answers.length % 10 !== 0) return;
-    if (mirror && mirror.items.length && mirror.count === answers.length) return;
-    (async () => {
-      const items = await apiGenerateMirror(answers);
-      if (items.length) {
-        const cache = { generatedAt: new Date().toISOString(), items, count: answers.length };
-        saveMirrorCache(cache);
-        setMirror(cache);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answers.length]);
-
-  // ---- 動作
-  const handleWelcomeDone = async (name: string) => {
-    const p = { displayName: name, createdAt: new Date().toISOString() };
-    saveProfile(p);
-    setProfile(p);
-    if (joinCode && circleAvailable) {
-      setJoining(true);
-      setJoinError('');
-      const s = await ensureSession();
-      if ('error' in s) {
-        setJoinError(s.error);
-        setJoining(false);
-        return;
-      }
-      setUserId(s.userId);
-      const r = await joinCircle(joinCode, name);
-      if (typeof r === 'string') setJoinError(r);
-      else {
-        setCircle(r);
-        await refreshCircle(r);
-        window.history.replaceState(null, '', '/');
-      }
-      setJoining(false);
+    if (recipients.length > 0 && firstRunStage === null) {
+      ensureTodayQuestion(recipients, settings.allowDeep);
     }
-  };
+  }, [recipients, settings.allowDeep, firstRunStage, ensureTodayQuestion]);
 
-  const handleCreateCircle = async () => {
-    setCircleError('');
-    const s = await ensureSession();
-    if ('error' in s) {
-      setCircleError(s.error);
+  // 宛先を保存（初回 / 設定）
+  const handleSaveRecipients = (list: RecipientProfile[]) => {
+    saveRecipients(list);
+    setRecipients(list);
+    setIsEditRecipientsOpen(false);
+    if (firstRunStage === 'intro') {
+      setFirstRunStage('answer');
       return;
     }
-    setUserId(s.userId);
-    const r = await createCircle(`${myName}の家族`, myName);
-    if (typeof r === 'string') setCircleError(r);
-    else {
-      setCircle(r);
-      await refreshCircle(r);
-    }
+    // 宛先が変わったら、今日の問いを取り直す（声の主が変わる）
+    ensureTodayQuestion(list, settings.allowDeep, true);
   };
 
-  const handleSeal = async (text: string, toFamily: boolean): Promise<AnswerItem> => {
-    const q = currentQuestion!;
-    const a: AnswerItem = {
-      id: `ans-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      questionId: q.id,
-      questionText: q.text,
-      textForRecipient: todayState?.textForRecipient || q.text,
-      theme: q.theme,
-      depth: q.depth,
-      recipientIds: toFamily && circle ? ['circle:' + circle.id] : recipients.map((r) => r.id),
-      recipientName: toFamily && circle ? circle.name : recipients.map((r) => r.name).join('・') || '自分',
-      recipientRelation: recipients[0]?.relation || 'other',
-      date: todayDateStr,
-      createdAt: new Date().toISOString(),
-      text,
-    };
-    saveAnswer(a);
+  // 初回体験: 一通目を封じた → 手紙の体裁で見せる
+  const handleFirstAnswerSaved = (saved: AnswerItem) => {
+    saveAnswer(saved);
     setAnswers(getAnswers());
-    if (toFamily && circle) {
-      const err = await shareAnswer(circle.id, myName, a);
-      if (err) console.warn(err);
-      await refreshCircle(circle);
-    }
-    return a;
+    setFirstAnswer(saved);
+    setFirstRunStage('preview');
   };
 
-  const handleUpdateDialogue = async (answerId: string, dialogue: DialogueTurn[]) => {
-    const a = getAnswers().find((x) => x.id === answerId);
-    if (!a) return;
-    const updated: AnswerItem = { ...a, dialogue, followUpQuestion: dialogue[0]?.q, followUpAnswer: dialogue[0]?.a };
-    saveAnswer(updated);
+  const handleChangeQuestion = () => {
+    if (recipients.length === 0 || todayState?.hasChangedToday) return;
+    ensureTodayQuestion(recipients, settings.allowDeep, true);
+  };
+
+  const handleSaveAnswer = (saved: AnswerItem) => {
+    saveAnswer(saved);
     setAnswers(getAnswers());
-    if (circle && a.recipientIds[0]?.startsWith('circle:')) {
-      await shareAnswer(circle.id, myName, updated);
-      await refreshCircle(circle);
-    }
+    setIsAnswering(false);
+    setEditingAnswer(null);
   };
 
-  const handleReact = async (sharedId: string, reaction: 'read' | 'thanks') => {
-    await markRead(sharedId, reaction);
-    if (circle) setReads(await readsFor(shared.map((x) => x.id)));
+  const handleDeleteAnswer = (id: string) => {
+    removeAnswer(id);
+    setAnswers(getAnswers());
   };
-
-  // ---- 手紙の列を組む
-  const feed: FeedItem[] = useMemo(() => {
-    const nameOf = (uid: string) => members.find((m) => m.user_id === uid)?.display_name || '誰か';
-    const items: FeedAnswer[] = [];
-    const sharedMineIds = new Set(shared.filter((s) => s.user_id === userId).map((s) => s.local_answer_id));
-    for (const s of shared) {
-      const mine = s.user_id === userId;
-      const rs = reads.filter((r) => r.shared_answer_id === s.id);
-      items.push({
-        kind: 'answer',
-        key: 'shared-' + s.id,
-        author: s.author_name,
-        mine,
-        date: s.answered_on,
-        createdAt: s.created_at,
-        question: s.question_text,
-        body: s.text,
-        dialogue: s.dialogue,
-        readWhen: s.read_when,
-        sharedId: s.id,
-        reactions: mine ? rs.filter((r) => r.user_id !== userId).map((r) => ({ name: nameOf(r.user_id), reaction: r.reaction })) : undefined,
-        myReaction: !mine ? rs.find((r) => r.user_id === userId)?.reaction : undefined,
-      });
-    }
-    for (const a of answers) {
-      if (sharedMineIds.has(a.id)) continue;
-      items.push({
-        kind: 'answer',
-        key: 'local-' + a.id,
-        author: myName,
-        mine: true,
-        date: a.date,
-        createdAt: a.createdAt,
-        question: a.textForRecipient || a.questionText,
-        body: a.text,
-        dialogue: a.dialogue,
-        readWhen: a.readWhen,
-        localOnly: !!circle,
-      });
-    }
-    let list: FeedItem[] = items
-      .filter((i) => !showMineOnly || i.mine)
-      .sort((x, y) => (y.date + y.createdAt).localeCompare(x.date + x.createdAt));
-    // 今日の自分の答えは上のカードに出ているので列からは外す
-    list = list.filter((i) => !(i.kind === 'answer' && i.mine && i.date === todayDateStr));
-    if (mirror && mirror.items.length && !showMineOnly) {
-      const card: FeedItem = {
-        kind: 'mirror',
-        key: 'mirror-' + mirror.generatedAt,
-        items: mirror.items.map((m) => {
-          const a = answers.find((x) => x.id === m.answerId);
-          return { label: m.label, quote: m.quote, from: a ? `わたし・${a.date.slice(5).replace('-', '/')}` : 'わたし' };
-        }),
-      };
-      list.splice(Math.min(2, list.length), 0, card);
-    }
-    return list;
-  }, [shared, answers, reads, members, userId, myName, circle, showMineOnly, mirror, todayDateStr]);
 
   const handleDataReset = () => {
-    setProfile(null);
     setRecipients([]);
     setSettings(getSettings());
     setAnswers([]);
     setTodayState(null);
-    setMirror(null);
-    setMeOpen(false);
+    setIsAnswering(false);
+    setCurrentTab('home');
+    setFirstAnswer(null);
+    setFirstRunStage('intro');
   };
+
   const handleDataImported = () => {
     migrateIfNeeded();
-    setProfile(getProfile());
-    setRecipients(getRecipients());
+    const list = getRecipients();
+    setRecipients(list);
     setSettings(getSettings());
     setAnswers(getAnswers());
     setTodayState(getTodayQuestionState());
-    setMirror(getMirrorCache());
+    setCurrentTab('home');
+    if (list.length > 0) setFirstRunStage(null);
   };
 
+  const hasRecipients = recipients.length > 0;
+
   return (
-    <div className="min-h-screen paper-noise flex justify-center text-[#2B2B2B]">
-      <div className="w-full max-w-md min-h-screen px-4 md:px-5">
-        {profile && (
-          <Timeline
-            myName={myName}
-            question={currentQuestion}
-            todayState={todayState}
-            todayAnswer={todayAnswer}
-            isLoadingQuestion={isLoadingQuestion}
-            hasCircle={!!circle}
-            voiceName={voiceRecipient && todayState?.textForRecipient && todayState.textForRecipient !== currentQuestion?.text ? voiceRecipient.name : null}
-            feed={feed}
-            daysSinceLast={daysSinceLast}
-            totalMine={answers.length}
-            onSeal={handleSeal}
-            onUpdateDialogue={handleUpdateDialogue}
-            onReact={handleReact}
-            onChangeQuestion={() => ensureTodayQuestion(true)}
-            onOpenMe={() => setMeOpen(true)}
+    <div className="min-h-screen paper-noise flex justify-center py-0 md:py-6 text-[#2B2B2B]">
+      <div className="w-full max-w-md min-h-screen md:min-h-[92vh] md:rounded-3xl paper-noise border-0 md:border md:border-[#E0D8CB] shadow-none flex flex-col relative overflow-hidden">
+        <main className="flex-1 px-4 md:px-6 pt-5 pb-6 overflow-y-auto">
+          {firstRunStage === 'answer' && hasRecipients ? (
+            <AnswerView
+              recipients={recipients}
+              question={firstQuestion}
+              todayState={null}
+              existingAnswer={null}
+              onSave={handleFirstAnswerSaved}
+              onCancel={() => setFirstRunStage(null)}
+              skipFollowUp
+              firstRun
+            />
+          ) : isAnswering && (editingQuestion || currentQuestion) && hasRecipients ? (
+            <AnswerView
+              key={editingAnswer?.id || 'today'}
+              recipients={recipients}
+              question={(editingQuestion || currentQuestion)!}
+              todayState={editingAnswer ? editingTodayState : todayState}
+              existingAnswer={editingAnswer}
+              onSave={handleSaveAnswer}
+              onCancel={() => {
+                setIsAnswering(false);
+                setEditingAnswer(null);
+              }}
+            />
+          ) : (
+            <>
+              {currentTab === 'home' && hasRecipients && (
+                <HomeView
+                  recipients={recipients}
+                  todayState={todayState}
+                  currentQuestion={currentQuestion}
+                  todayAnswer={todayAnswer}
+                  streakCount={streakCount}
+                  lastAnswerDate={lastAnswerDate}
+                  totalAnswerCount={answers.length}
+                  isLoadingQuestion={isLoadingQuestion}
+                  onAnswerClick={() => {
+                    setEditingAnswer(null);
+                    setIsAnswering(true);
+                  }}
+                  onChangeQuestionClick={handleChangeQuestion}
+                  onEditTodayAnswer={() => {
+                    if (todayAnswer) {
+                      setEditingAnswer(todayAnswer);
+                      setIsAnswering(true);
+                    }
+                  }}
+                />
+              )}
+
+              {currentTab === 'history' && (
+                <HistoryView
+                  answers={answers}
+                  recipients={recipients}
+                  onDeleteAnswer={handleDeleteAnswer}
+                  onPickQuestion={handlePickQuestion}
+                />
+              )}
+
+              {currentTab === 'mirror' && <MirrorView answers={answers} />}
+
+              {currentTab === 'letter' && hasRecipients && (
+                <LetterView answers={answers} recipients={recipients} />
+              )}
+
+              {currentTab === 'circle' && <CircleView answers={answers} />}
+
+              {currentTab === 'settings' && hasRecipients && (
+                <SettingsView
+                  recipients={recipients}
+                  allowDeep={settings.allowDeep}
+                  settings={settings}
+                  onUpdateSettings={(patch) => {
+                    const next = { ...settings, ...patch };
+                    saveSettings(next);
+                    setSettings(next);
+                  }}
+                  onEditRecipient={() => setIsEditRecipientsOpen(true)}
+                  onUpdateDeepToggle={(allowDeep) => {
+                    const next = { ...settings, allowDeep };
+                    saveSettings(next);
+                    setSettings(next);
+                  }}
+                  onDataReset={handleDataReset}
+                  onDataImported={handleDataImported}
+                />
+              )}
+            </>
+          )}
+        </main>
+
+        {!isAnswering && firstRunStage === null && (
+          <BottomNav
+            currentTab={currentTab}
+            onSelectTab={(tab) => {
+              setCurrentTab(tab);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           />
         )}
-        {showMineOnly && profile && (
-          <button
-            type="button"
-            onClick={() => setShowMineOnly(false)}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-[#2B2B2B] text-[#F4EFE6] text-xs shadow-none cursor-pointer z-30"
-          >
-            あなたの手紙だけ表示中 ・ 全部見る
-          </button>
+
+        {/* 初回: 4コマ → 誰に届けますか */}
+        {firstRunStage === 'intro' && (
+          <OnboardingModal key="first" isOpen mode="first" onSave={handleSaveRecipients} />
         )}
 
-        {!profile && <Welcome inviteCircleName={joinCode ? inviteName : null} onDone={handleWelcomeDone} busy={joining} error={joinError} />}
+        {/* 初回: 一通目を手紙の体裁で */}
+        {firstRunStage === 'preview' && firstAnswer && hasRecipients && (
+          <FirstLetterPreview
+            answer={firstAnswer}
+            recipients={recipients}
+            onDone={() => setFirstRunStage(null)}
+          />
+        )}
 
-        <MeSheet
-          open={meOpen}
-          onClose={() => setMeOpen(false)}
-          myName={myName}
-          answers={answers}
-          recipients={recipients}
-          settings={settings}
-          circle={circle}
-          members={members}
-          circleError={circleError}
-          onCreateCircle={handleCreateCircle}
-          onShowMine={() => setShowMineOnly(true)}
-          onUpdateSettings={(patch) => {
-            const next = { ...settings, ...patch };
-            saveSettings(next);
-            setSettings(next);
-          }}
-          onEditRecipients={() => {
-            setMeOpen(false);
-            setEditRecipients(true);
-          }}
-          onDataReset={handleDataReset}
-          onDataImported={handleDataImported}
-        />
-
-        {editRecipients && (
+        {/* 設定からの宛先編集 */}
+        {isEditRecipientsOpen && (
           <OnboardingModal
             key="edit"
             isOpen
             mode="edit"
             initialRecipients={recipients}
-            onSave={(list) => {
-              saveRecipients(list);
-              setRecipients(list);
-              setEditRecipients(false);
-              ensureTodayQuestion(true);
-            }}
-            onClose={() => setEditRecipients(false)}
+            onSave={handleSaveRecipients}
+            onClose={() => setIsEditRecipientsOpen(false)}
           />
         )}
       </div>

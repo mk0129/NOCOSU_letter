@@ -19,7 +19,6 @@ const STORAGE_KEYS = {
   LETTERS: 'nocosu_compiled_letters',
   BOOKLET_ORDER_URL: 'nocosu_booklet_order_url',
   TRUSTEE: 'nocosu_trustee',
-  PROFILE: 'nocosu_profile',
 };
 
 // 宛先（1〜3人）
@@ -326,24 +325,6 @@ export function getSolarTerm(dateStr?: string): string {
   return current;
 }
 
-// 自分の呼び名（家族に見える名前）
-export interface Profile { displayName: string; createdAt: string }
-export function getProfile(): Profile | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.PROFILE);
-    return raw ? (JSON.parse(raw) as Profile) : null;
-  } catch {
-    return null;
-  }
-}
-export function saveProfile(p: Profile): void {
-  try {
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(p));
-  } catch (e) {
-    console.error('Error saving profile', e);
-  }
-}
-
 // 託す人
 export function getTrustee(): Trustee | null {
   try {
@@ -427,7 +408,6 @@ export function clearAllData(): void {
   localStorage.removeItem(STORAGE_KEYS.RECIPIENTS);
   localStorage.removeItem(STORAGE_KEYS.SETTINGS);
   localStorage.removeItem(STORAGE_KEYS.TRUSTEE);
-  localStorage.removeItem(STORAGE_KEYS.PROFILE);
   localStorage.removeItem(STORAGE_KEYS.ANSWERS);
   localStorage.removeItem(STORAGE_KEYS.TODAY_QUESTION);
   localStorage.removeItem(STORAGE_KEYS.MIRROR_CACHE);

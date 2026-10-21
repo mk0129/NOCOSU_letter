@@ -50,44 +50,19 @@ export async function getSessionUser() {
   return data.user ?? null;
 }
 
-/** 端末に紐づく匿名アカウントでログイン（メール不要）。既にログイン済みならそのまま */
-export async function ensureSession(): Promise<{ userId: string } | { error: string }> {
-  if (!supabase) return { error: 'サーバー未設定' };
-  const { data } = await supabase.auth.getSession();
-  if (data.session?.user) return { userId: data.session.user.id };
-  const { data: anon, error } = await supabase.auth.signInAnonymously();
-  if (error || !anon.user) {
-    const msg = error?.message || '';
-    if (/anonymous/i.test(msg) && /disabled|not enabled/i.test(msg)) {
-      return { error: 'サーバー側で匿名ログインが無効です（Supabase: Authentication → Sign In / Providers → Anonymous を有効に）' };
-    }
-    return { error: msg || 'ログインできませんでした' };
-  }
-  return { userId: anon.user.id };
+/** メールにリンクを送る。押すとこの画面に戻ってログイン済みになる */
+export async function sendMagicLink(email: string): Promise<string | null> {
+  if (!supabase) return 'サーバー未設定';
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + '/?tab=circle' },
+  });
+  if (!error) return null;
+  if (/rate limit/i.test(error.message)) return 'メールの送信回数の上限に達しました。しばらく待ってからもう一度';
+  return error.message;
 }
 
-/** 招待リンク */
-export function inviteUrl(code: string): string {
-  return `${window.location.origin}/?join=${encodeURIComponent(code)}`;
-}
-
-export function joinCodeFromUrl(): string | null {
-  try {
-    const c = new URLSearchParams(window.location.search).get('join');
-    return c ? c.toUpperCase() : null;
-  } catch {
-    return null;
-  }
-}
-
-/** 招待コードから輪の名前だけ取る（入る前の表示用） */
-export async function circleNameByCode(code: string): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc('circle_name_by_code', { p_code: code });
-  if (error) return null;
-  return (data as string | null) || null;
-}
-
+/** ログイン状態の変化を購読（リンクから戻ってきたときに拾う） */
 export function onAuthChange(cb: () => void): () => void {
   if (!supabase) return () => {};
   const { data } = supabase.auth.onAuthStateChange(() => cb());
