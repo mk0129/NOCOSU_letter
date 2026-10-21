@@ -1,0 +1,7 @@
+[
+  { "id": "first-1", "theme": "はじめの一通", "depth": "light", "text": "最後に、心から笑ったのはいつですか?" },
+  { "id": "first-2", "theme": "はじめの一通", "depth": "light", "text": "今日、いちばん美味しかったものは何ですか?" },
+  { "id": "first-3", "theme": "はじめの一通", "depth": "light", "text": "子どものころ、よく遊んだ場所はどこですか?" },
+  { "id": "first-4", "theme": "はじめの一通", "depth": "light", "text": "何度も聞いてしまう曲はありますか?" },
+  { "id": "first-5", "theme": "はじめの一通", "depth": "light", "text": "休みの日、必ずやることは何ですか?" }
+]

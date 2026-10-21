@@ -1,6 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { AnswerItem } from '../types';
 import { formatJapaneseDate } from '../utils/storage';
+import { shareOrDownloadAnswerCard } from '../utils/answerCard';
+import questionsData from '../data/questions.json';
+import { QuestionItem } from '../types';
+
+const QUESTION_BANK: QuestionItem[] = questionsData as QuestionItem[];
 import {
   Search,
   Filter,
@@ -23,6 +28,18 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDetailAnswer, setActiveDetailAnswer] = useState<AnswerItem | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isExportingCard, setIsExportingCard] = useState(false);
+
+  const handleExportCard = async (answer: AnswerItem) => {
+    setIsExportingCard(true);
+    try {
+      await shareOrDownloadAnswerCard(answer);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsExportingCard(false);
+    }
+  };
 
   // Extract all distinct themes
   const themes = useMemo(() => {
@@ -60,6 +77,44 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
         <p className="text-xs text-[#6E685E]">
           日々の問いにあなたが答えてきた記録です（{answers.length}通）
         </p>
+      </div>
+
+      {/* 百通の地図: 問いごとに、答えた分だけ灯りがつく */}
+      <div className="washi-card rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-[#6E685E]">百通の地図</span>
+          <span className="text-[11px] text-[#8E877D]">
+            {QUESTION_BANK.filter((q) => answers.some((a) => a.questionId === q.id)).length} / {QUESTION_BANK.length} の問いに答えました
+          </span>
+        </div>
+        <div className="space-y-1.5">
+          {Array.from(new Set(QUESTION_BANK.map((q) => q.theme))).map((theme) => {
+            const qs = QUESTION_BANK.filter((q) => q.theme === theme);
+            return (
+              <div key={theme} className="flex items-center gap-2">
+                <span className="w-24 shrink-0 text-[10px] text-[#8E877D] truncate">{theme}</span>
+                <div className="flex gap-1.5 flex-wrap">
+                  {qs.map((q) => {
+                    const ans = answers.find((a) => a.questionId === q.id);
+                    return (
+                      <button
+                        key={q.id}
+                        type="button"
+                        title={q.text}
+                        onClick={() => ans && setActiveDetailAnswer(ans)}
+                        className={`w-5 h-5 rounded-sm border transition-colors ${
+                          ans
+                            ? 'bg-[#B5443A] border-[#B5443A] cursor-pointer'
+                            : 'bg-transparent border-[#E0D8CB] cursor-default'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Search Input */}
@@ -201,8 +256,28 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
                 </p>
               </div>
 
-              {/* Follow-up section */}
-              {activeDetailAnswer.followUpQuestion && (
+              {/* いつ読んでほしいか */}
+              {activeDetailAnswer.readWhen && (
+                <p className="text-[11px] text-[#8E877D]">
+                  いつ読んでほしいか: <span className="text-[#2B2B2B]">{activeDetailAnswer.readWhen}</span>
+                </p>
+              )}
+
+              {/* 聞き手との往復（2往復目以降） */}
+              {activeDetailAnswer.dialogue && activeDetailAnswer.dialogue.length > 1 && (
+                <div className="p-4 rounded-xl bg-[#F5EFE4] border border-[#E0D8CB] space-y-3">
+                  <span className="text-xs text-[#524E48] font-medium">{activeDetailAnswer.recipientName}との往復</span>
+                  {activeDetailAnswer.dialogue.map((d, i) => (
+                    <div key={i} className="space-y-1">
+                      <p className="text-xs font-hand text-[#524E48]">{d.q}</p>
+                      <p className="text-sm font-mincho text-[#2B2B2B] leading-relaxed whitespace-pre-wrap pl-3 border-l border-[#E0D8CB]">{d.a}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Follow-up section（1往復のみのとき） */}
+              {activeDetailAnswer.followUpQuestion && !(activeDetailAnswer.dialogue && activeDetailAnswer.dialogue.length > 1) && (
                 <div className="p-4 rounded-xl bg-[#F5EFE4] border border-[#E0D8CB] space-y-2">
                   <div className="flex items-center gap-1.5 text-xs text-[#524E48] font-medium">
                     <MessageCircle className="w-3.5 h-3.5" />
@@ -255,6 +330,16 @@ export const HistoryView: React.FC<Props> = ({ answers, onDeleteAnswer }) => {
                   </button>
                 )}
 
+                <button
+                  type="button"
+                  disabled={isExportingCard}
+                  onClick={() => handleExportCard(activeDetailAnswer)}
+                  title="この一通を画像にして保存・共有"
+                  className="inline-flex items-center gap-1 px-3 py-2 border border-[#E0D8CB] bg-transparent hover:border-[#2B2B2B] text-[#2B2B2B] text-xs rounded-xl font-medium cursor-pointer disabled:opacity-50"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>{isExportingCard ? '作っています…' : '画像にする'}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setActiveDetailAnswer(null)}

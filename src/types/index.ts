@@ -43,8 +43,24 @@ export interface AnswerItem {
   date: string; // YYYY-MM-DD
   createdAt: string; // ISO
   text: string; // 本文（ユーザー自身の言葉）
-  followUpQuestion?: string; // 追い質問
-  followUpAnswer?: string; // 追い質問への回答
+  followUpQuestion?: string; // 追い質問（1往復目。互換用）
+  followUpAnswer?: string; // 追い質問への回答（1往復目。互換用）
+  dialogue?: DialogueTurn[]; // 聞き手モード: 追い質問の往復（最大5）
+  readWhen?: ReadWhen; // いつ読んでほしいか
+}
+
+export interface DialogueTurn {
+  q: string; // 宛先の声での問い
+  a: string; // 本人の言葉
+}
+
+export type ReadWhen = '小さいうちに' | '10代で' | '大人になったら' | 'つらいときに' | '親になったら' | 'いつでも';
+export const READ_WHEN_OPTIONS: ReadWhen[] = ['小さいうちに', '10代で', '大人になったら', 'つらいときに', '親になったら', 'いつでも'];
+
+export interface Trustee {
+  name: string; // 託す人の呼び名
+  note?: string; // 連絡先や一言
+  updatedAt: string;
 }
 
 export interface MirrorItem {

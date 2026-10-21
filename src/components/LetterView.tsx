@@ -119,10 +119,16 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
       md += `> 問い: ${ans.textForRecipient || ans.questionText}\n\n`;
       md += `${ans.text}\n\n`;
 
-      if (includeFollowUps && ans.followUpQuestion && ans.followUpAnswer) {
+      if (includeFollowUps && ans.dialogue && ans.dialogue.length > 0) {
+        for (const d of ans.dialogue) {
+          md += `*${d.q}*\n`;
+          md += `> ${d.a}\n\n`;
+        }
+      } else if (includeFollowUps && ans.followUpQuestion && ans.followUpAnswer) {
         md += `*追い質問: ${ans.followUpQuestion}*\n`;
         md += `> ${ans.followUpAnswer}\n\n`;
       }
+      if (ans.readWhen) md += `（いつ読んでほしいか: ${ans.readWhen}）\n\n`;
 
       md += `\n`;
     });
@@ -397,8 +403,20 @@ export const LetterView: React.FC<Props> = ({ answers, recipient }) => {
                         </p>
                       </div>
 
-                      {/* Follow-up answer if included */}
+                      {/* 往復（2往復以上） */}
+                      {includeFollowUps && ans.dialogue && ans.dialogue.length > 1 && (
+                        <div className="ml-4 pl-4 border-l border-[#2B2B2B]/40 space-y-2 text-xs text-[#524E48]">
+                          {ans.dialogue.map((d, i) => (
+                            <div key={i} className="space-y-0.5">
+                              <span className="font-hand text-[#2B2B2B] block">{d.q}</span>
+                              <p className="font-mincho whitespace-pre-wrap leading-relaxed">{d.a}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Follow-up answer if included（1往復のみ） */}
                       {includeFollowUps &&
+                        !(ans.dialogue && ans.dialogue.length > 1) &&
                         ans.followUpQuestion &&
                         ans.followUpAnswer && (
                           <div className="ml-4 pl-4 border-l border-[#2B2B2B]/40 space-y-1 text-xs text-[#524E48]">

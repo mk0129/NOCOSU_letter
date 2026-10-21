@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { RecipientProfile, RecipientRelation } from '../types';
 import { Heart, User, AlertCircle, X, ArrowRight } from 'lucide-react';
+import sampleLetter from '../data/sample_letter.json';
+import { formatJapaneseDate, getSolarTerm, formatPostmarkDate } from '../utils/storage';
 
 interface Props {
   initialProfile?: RecipientProfile | null;
@@ -8,6 +10,10 @@ interface Props {
   onSave: (profile: RecipientProfile) => void;
   onClose?: () => void;
   isEditMode?: boolean;
+  /** 'first': 前置き（見本の一通）→ 初回の問いへ / 'afterFirstAnswer': 一通目のあとに宛先を決める / 'edit': 設定 */
+  mode?: 'first' | 'afterFirstAnswer' | 'edit';
+  /** mode='first' で「一通目を書く」を押したとき */
+  onStartFirstLetter?: () => void;
 }
 
 const RELATIONS: { id: RecipientRelation; label: string; description: string }[] = [
@@ -36,8 +42,13 @@ export const OnboardingModal: React.FC<Props> = ({
   onSave,
   onClose,
   isEditMode = false,
+  mode,
+  onStartFirstLetter,
 }) => {
-  const [step, setStep] = useState<'intro' | 'form'>(isEditMode ? 'form' : 'intro');
+  const effectiveMode = mode ?? (isEditMode ? 'edit' : 'first');
+  const [step, setStep] = useState<'intro' | 'letter' | 'form'>(
+    effectiveMode === 'first' ? 'intro' : 'form'
+  );
   const [relation, setRelation] = useState<RecipientRelation>(
     initialProfile?.relation || 'child'
   );
@@ -69,7 +80,7 @@ export const OnboardingModal: React.FC<Props> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs overflow-y-auto">
       <div className="relative w-full max-w-md bg-[#FAF7F0] border border-[#E0D8CB] rounded-2xl overflow-hidden my-6">
-        {isEditMode && onClose && (
+        {effectiveMode === 'edit' && onClose && (
           <button
             type="button"
             onClick={onClose}
@@ -80,46 +91,66 @@ export const OnboardingModal: React.FC<Props> = ({
           </button>
         )}
 
-        {step === 'intro' && !isEditMode ? (
-          /* Step 1: Prologue / Introduction Screen */
-          <div className="p-6 md:p-8 space-y-6 text-center">
+        {step === 'intro' && effectiveMode === 'first' ? (
+          /* Step 1: 一通の実物を先に見せる（封筒 → 開く） */
+          <div className="p-6 md:p-8 space-y-5">
             <div className="flex justify-end">
               <button
                 type="button"
                 onClick={() => setStep('form')}
                 className="text-xs text-[#8E877D] hover:text-[#2B2B2B] transition-colors py-1 px-2.5 rounded-lg hover:bg-[#EFE9DC] cursor-pointer"
               >
-                スキップ
+                読まずに進む
               </button>
             </div>
+            <div className="text-center space-y-1">
+              <h2 className="text-2xl font-mincho font-medium tracking-wider">NOCOSU</h2>
+              <p className="text-sm font-mincho text-[#524E48]">あなたに、手紙が届いています。</p>
+            </div>
 
-            <div className="space-y-4 py-3">
-              <h2 className="text-2xl font-mincho font-medium text-[#2B2B2B] tracking-wider">
-                NOCOSU
-              </h2>
-
-              <div className="space-y-3 pt-2 text-[#2B2B2B]">
-                <p className="text-base font-mincho font-medium leading-relaxed">
-                  毎朝ひとつ、<br />
-                  <span className="text-[#2B2B2B] font-medium">大切な人の声</span>で質問が届きます。
-                </p>
-                <p className="text-sm font-mincho text-[#524E48] leading-relaxed">
-                  答えるのはあなたの言葉。<br />
-                  AIは一文字も書きません。
-                </p>
+            {/* 閉じた封筒 */}
+            <button
+              type="button"
+              onClick={() => setStep('letter')}
+              className="relative w-full min-h-[200px] bg-[#FAF7F0] border border-[#E0D8CB] rounded-2xl overflow-hidden cursor-pointer hover:border-[#2B2B2B]/50 transition-colors p-5 flex flex-col justify-between text-left"
+            >
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 400 200" preserveAspectRatio="none">
+                <path d="M 0,0 L 400,0 L 200,110 Z" fill="#F4EFE6" stroke="#E0D8CB" strokeWidth="1.2" />
+                <line x1="0" y1="200" x2="160" y2="110" stroke="#E0D8CB" strokeWidth="1" />
+                <line x1="400" y1="200" x2="240" y2="110" stroke="#E0D8CB" strokeWidth="1" />
+              </svg>
+              <div className="relative flex justify-end">
+                <div className="w-14 h-14 rounded-full border border-[#2B2B2B] flex flex-col items-center justify-center text-[#2B2B2B] bg-[#FAF7F0]/80">
+                  <span className="text-[9px] font-medium">{formatPostmarkDate(sampleLetter.date)}</span>
+                  <span className="w-6 border-t border-[#2B2B2B] my-0.5" />
+                  <span className="text-[10px] font-mincho">{getSolarTerm(sampleLetter.date)}</span>
+                </div>
               </div>
+              <div className="relative flex items-end justify-between">
+                <span className="font-hand text-lg text-[#2B2B2B]">{sampleLetter.to}</span>
+                <span className="text-[11px] text-[#8E877D]">タップして開く</span>
+              </div>
+            </button>
+          </div>
+        ) : step === 'letter' && effectiveMode === 'first' ? (
+          /* Step 1b: 開いた一通 */
+          <div className="p-6 md:p-8 space-y-5 max-h-[85vh] overflow-y-auto">
+            <div className="text-center space-y-1">
+              <h3 className="font-hand text-xl text-[#2B2B2B] leading-relaxed">{sampleLetter.question}</h3>
+              <span className="text-[11px] text-[#8E877D] block">{formatJapaneseDate(sampleLetter.date)}</span>
             </div>
-
-            <div className="pt-4 space-y-2.5">
-              <button
-                type="button"
-                onClick={() => setStep('form')}
-                className="w-full py-3.5 px-6 border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] font-medium rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
-              >
-                <span>宛先を決める</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+            <div className="p-4 rounded-xl bg-[#FCFAF6] border border-[#E0D8CB]">
+              <p className="text-sm font-mincho text-[#2B2B2B] leading-[1.9] whitespace-pre-wrap">{sampleLetter.body}</p>
+              <p className="mt-4 text-right font-hand text-base text-[#524E48]">{sampleLetter.from}</p>
             </div>
+            <button
+              type="button"
+              onClick={() => setStep('form')}
+              className="w-full py-3.5 px-6 border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] font-medium rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+            >
+              <span>{sampleLetter.closing}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         ) : (
           /* Step 2: Recipient Selection Form */
@@ -129,11 +160,18 @@ export const OnboardingModal: React.FC<Props> = ({
                 <Heart className="w-5 h-5 stroke-[1.8]" />
               </div>
               <h2 className="text-2xl font-mincho font-medium text-[#2B2B2B] tracking-wide">
-                {isEditMode ? '宛先の設定' : '誰に、のこしますか'}
+                {effectiveMode === 'edit'
+                  ? '宛先の設定'
+                  : effectiveMode === 'afterFirstAnswer'
+                    ? 'この一通を、誰に届けますか'
+                    : '誰に、のこしますか'}
               </h2>
               <p className="text-sm text-[#6E685E] leading-relaxed">
-                あなたの言葉を受け取る相手を1人決めます。<br />
-                毎朝、その人からの問いかけとして届きます。
+                {effectiveMode === 'afterFirstAnswer' ? (
+                  <>いま書いた言葉を受け取る相手を1人決めます。<br />明日から毎朝、その人からの問いが届きます。</>
+                ) : (
+                  <>あなたの言葉を受け取る相手を1人決めます。<br />毎朝、その人からの問いかけとして届きます。</>
+                )}
               </p>
             </div>
 
@@ -249,7 +287,7 @@ export const OnboardingModal: React.FC<Props> = ({
                 type="submit"
                 className="w-full py-3 px-6 border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] font-medium rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
               >
-                <span>{isEditMode ? '設定を保存する' : 'この宛先ではじめる'}</span>
+                <span>{effectiveMode === 'edit' ? '設定を保存する' : effectiveMode === 'afterFirstAnswer' ? 'この人へ届ける' : 'この宛先ではじめる'}</span>
               </button>
             </div>
           </form>

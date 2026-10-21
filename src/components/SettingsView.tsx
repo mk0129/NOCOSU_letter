@@ -6,6 +6,8 @@ import {
   clearAllData,
   getBookletOrderUrl,
   saveBookletOrderUrl,
+  getTrustee,
+  saveTrustee,
 } from '../utils/storage';
 import {
   Settings,
@@ -72,6 +74,15 @@ export const SettingsView: React.FC<Props> = ({
   );
   const [bookletOrderUrl, setBookletOrderUrl] = useState(() => getBookletOrderUrl());
   const [isUrlSaved, setIsUrlSaved] = useState(false);
+  const [trusteeName, setTrusteeName] = useState(() => getTrustee()?.name || '');
+  const [trusteeNote, setTrusteeNote] = useState(() => getTrustee()?.note || '');
+  const [isTrusteeSaved, setIsTrusteeSaved] = useState(false);
+  const handleSaveTrustee = () => {
+    const name = trusteeName.trim();
+    saveTrustee(name ? { name, note: trusteeNote.trim() || undefined, updatedAt: new Date().toISOString() } : null);
+    setIsTrusteeSaved(true);
+    setTimeout(() => setIsTrusteeSaved(false), 2000);
+  };
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSaveBookletUrl = () => {
@@ -200,6 +211,43 @@ export const SettingsView: React.FC<Props> = ({
             />
           </button>
         </div>
+      </div>
+
+      {/* 託す人 */}
+      <div className="washi-card rounded-2xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-[#6E685E] tracking-wider uppercase">託す人</span>
+          {isTrusteeSaved && <span className="text-xs text-[#2B2B2B] font-medium">保存しました</span>}
+        </div>
+        <p className="text-xs text-[#6E685E] leading-relaxed">
+          あなたに何かあったとき、この手紙を{recipient.name}に渡す人。決めておくと、言葉はあなたより長く残ります。
+        </p>
+        <input
+          type="text"
+          value={trusteeName}
+          onChange={(e) => setTrusteeName(e.target.value)}
+          placeholder="呼び名（例: 妻、兄、親友の田中）"
+          maxLength={30}
+          className="w-full px-3.5 py-2 bg-[#FCFAF6] border border-[#E0D8CB] rounded-xl text-xs text-[#2B2B2B] placeholder-[#A49E93] focus:outline-hidden focus:border-[#2B2B2B] transition-all"
+        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={trusteeNote}
+            onChange={(e) => setTrusteeNote(e.target.value)}
+            placeholder="ひとこと・連絡先（任意）"
+            maxLength={80}
+            className="flex-1 px-3.5 py-2 bg-[#FCFAF6] border border-[#E0D8CB] rounded-xl text-xs text-[#2B2B2B] placeholder-[#A49E93] focus:outline-hidden focus:border-[#2B2B2B] transition-all"
+          />
+          <button
+            type="button"
+            onClick={handleSaveTrustee}
+            className="px-4 py-2 border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] text-xs font-medium rounded-xl transition-colors cursor-pointer shrink-0"
+          >
+            保存
+          </button>
+        </div>
+        <p className="text-[11px] text-[#8E877D]">年に一度、手紙を印刷して封筒に入れておくことも勧めます。</p>
       </div>
 
       {/* Booklet Order URL Setting */}

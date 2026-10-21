@@ -13,8 +13,7 @@ import {
 import {
   formatJapaneseDate,
   formatPostmarkDate,
-  getSolarTerm,
-} from '../utils/storage';
+  getSolarTerm, getTrustee } from '../utils/storage';
 
 interface Props {
   recipient: RecipientProfile;
@@ -318,7 +317,7 @@ export const HomeView: React.FC<Props> = ({
                   className={`relative w-full bg-[#FAF7F0] border border-[#E0D8CB] rounded-2xl transition-all duration-700 ${
                     !isOpened
                       ? 'min-h-[240px] cursor-pointer hover:border-[#2B2B2B]/50 overflow-hidden p-5 flex flex-col justify-between'
-                      : 'pt-6 pb-5 px-4 md:px-6'
+                      : 'pt-6 pb-5 px-4 md:px-6 overflow-hidden'
                   }`}
                 >
                   {/* Envelope Diagonal Pocket Lines (background) */}
@@ -349,8 +348,8 @@ export const HomeView: React.FC<Props> = ({
                   <motion.div
                     initial={false}
                     animate={{
-                      rotateX: isOpened ? 174 : 0,
-                      y: isOpened ? -6 : 0,
+                      rotateX: isOpened ? 160 : 0,
+                      y: isOpened ? 0 : 0,
                       scaleY: isOpened ? 0.92 : 1,
                       opacity: isOpened ? 0.32 : 1,
                     }}
@@ -508,7 +507,9 @@ export const HomeView: React.FC<Props> = ({
                         {/* Question Text (.font-hand) */}
                         <div className="space-y-2">
                           <span className="text-xs text-[#8E877D] tracking-wide block">
-                            {recipient.name}からの問い
+                            {todayState?.textForRecipient && todayState.textForRecipient !== currentQuestion?.text
+                              ? `${recipient.name}からの問い`
+                              : '今日の問い'}
                           </span>
                           <h2 className="font-hand text-[1.5rem] font-normal text-[#2B2B2B] leading-relaxed">
                             {todayState?.textForRecipient || currentQuestion?.text}
@@ -693,6 +694,13 @@ export const HomeView: React.FC<Props> = ({
           )}
         </div>
       </div>
+
+      {/* 託す人 */}
+      {getTrustee() && (
+        <p className="text-[11px] text-[#8E877D] text-center">
+          託す人: <span className="text-[#2B2B2B]">{getTrustee()?.name}</span>
+        </p>
+      )}
 
       {/* NOCOSUについて（1行の控えめな注記） */}
       <div className="text-center pt-1">

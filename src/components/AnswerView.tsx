@@ -4,9 +4,13 @@ import {
   QuestionItem,
   AnswerItem,
   TodayQuestionState,
+  DialogueTurn,
+  ReadWhen,
+  READ_WHEN_OPTIONS,
 } from '../types';
 import { AudioRecorder } from '../utils/audioRecorder';
 import { apiTranscribeAudio, apiFetchFollowUp } from '../utils/api';
+import { getTodayDateString } from '../utils/storage';
 import {
   Mic,
   Square,
@@ -24,6 +28,10 @@ interface Props {
   existingAnswer?: AnswerItem | null;
   onSave: (answer: AnswerItem) => void;
   onCancel: () => void;
+  /** 初回体験: 追い質問を省き、封をしたらすぐ完了する */
+  skipFollowUp?: boolean;
+  /** 初回体験: 宛先がまだ決まっていないときの見出し */
+  firstRun?: boolean;
 }
 
 export const AnswerView: React.FC<Props> = ({
@@ -33,6 +41,8 @@ export const AnswerView: React.FC<Props> = ({
   existingAnswer,
   onSave,
   onCancel,
+  skipFollowUp = false,
+  firstRun = false,
 }) => {
   // Main Answer state
   const [text, setText] = useState(existingAnswer?.text || '');
@@ -53,6 +63,17 @@ export const AnswerView: React.FC<Props> = ({
   );
   const [isFollowUpRecording, setIsFollowUpRecording] = useState(false);
   const [isGeneratingFollowUp, setIsGeneratingFollowUp] = useState(false);
+
+  // 聞き手モード: 済んだ往復（最大 MAX_TURNS）
+  const MAX_TURNS = 5;
+  const [dialogue, setDialogue] = useState<DialogueTurn[]>(() => {
+    if (existingAnswer?.dialogue?.length) return existingAnswer.dialogue;
+    if (existingAnswer?.followUpQuestion && existingAnswer?.followUpAnswer) {
+      return [{ q: existingAnswer.followUpQuestion, a: existingAnswer.followUpAnswer }];
+    }
+    return [];
+  });
+  const [readWhen, setReadWhen] = useState<ReadWhen | undefined>(existingAnswer?.readWhen);
 
   // Audio Recorder instance
   const recorderRef = useRef<AudioRecorder | null>(null);
@@ -152,27 +173,53 @@ export const AnswerView: React.FC<Props> = ({
       return;
     }
 
-    setIsGeneratingFollowUp(true);
     setTranscribeError('');
 
+    // 初回体験: 追い質問なしでそのまま完了
+    if (skipFollowUp) {
+      handleComplete(false);
+      return;
+    }
+
+    // 先に画面を進め、追い質問は裏で取りに行く（待たせない）
+    setStage('followup');
+    if (!followUpQuestion) {
+      await fetchNextQuestion(dialogue);
+    }
+  };
+
+  // 聞き手モード: これまでの往復を添えて、次の問いをもらう
+  const fetchNextQuestion = async (turns: DialogueTurn[]) => {
+    setIsGeneratingFollowUp(true);
+    setFollowUpQuestion('');
+    setFollowUpAnswer('');
     try {
-      const followUp = await apiFetchFollowUp(
-        question.text,
-        text.trim(),
-        recipient
-      );
+      const transcript = turns.map((d) => `問い: ${d.q}\n答え: ${d.a}`).join('\n\n');
+      const context = transcript ? `${text.trim()}\n\n【これまでの往復】\n${transcript}` : text.trim();
+      const followUp = await apiFetchFollowUp(question.text, context, recipient);
       setFollowUpQuestion(followUp);
-      setStage('followup');
     } catch {
       setFollowUpQuestion('もう少し、詳しく聞かせてください。');
-      setStage('followup');
     } finally {
       setIsGeneratingFollowUp(false);
     }
   };
 
+  // 往復をひとつ閉じる。continueAsking なら次の問いへ、そうでなければ完了
+  const handleTurn = async (continueAsking: boolean) => {
+    const a = followUpAnswer.trim();
+    const next = a && followUpQuestion ? [...dialogue, { q: followUpQuestion, a }] : dialogue;
+    setDialogue(next);
+    if (continueAsking && next.length < MAX_TURNS) {
+      await fetchNextQuestion(next);
+      return;
+    }
+    commit(next);
+  };
+
   // Step 2: Finish and commit to localStorage
-  const handleComplete = (withFollowUp: boolean) => {
+  const commit = (turns: DialogueTurn[]) => {
+    const first = turns[0];
     const finalAnswer: AnswerItem = {
       id: existingAnswer?.id || `ans-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       questionId: question.id,
@@ -182,14 +229,20 @@ export const AnswerView: React.FC<Props> = ({
       depth: question.depth,
       recipientName: recipient.name,
       recipientRelation: recipient.relation,
-      date: todayState?.date || new Date().toISOString().split('T')[0],
+      date: todayState?.date || getTodayDateString(),
       createdAt: existingAnswer?.createdAt || new Date().toISOString(),
       text: text.trim(),
-      followUpQuestion: followUpQuestion || undefined,
-      followUpAnswer: withFollowUp && followUpAnswer.trim() ? followUpAnswer.trim() : undefined,
+      followUpQuestion: first?.q,
+      followUpAnswer: first?.a,
+      dialogue: turns.length ? turns : undefined,
+      readWhen,
     };
-
     onSave(finalAnswer);
+  };
+
+  // 互換: 初回体験など、追い質問なしで完了
+  const handleComplete = (_withFollowUp: boolean) => {
+    commit(dialogue);
   };
 
   const formatTimer = (sec: number) => {
@@ -208,7 +261,7 @@ export const AnswerView: React.FC<Props> = ({
           className="inline-flex items-center gap-1.5 text-xs text-[#6E685E] hover:text-[#2B2B2B] transition-colors py-1.5 px-2.5 rounded-lg hover:bg-[#EFE9DC] cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>ホームへ戻る</span>
+          <span>{firstRun ? '書かずに進む' : 'ホームへ戻る'}</span>
         </button>
 
         <button
@@ -223,15 +276,17 @@ export const AnswerView: React.FC<Props> = ({
       {/* Question Header Card */}
       <div className="washi-card rounded-2xl p-6 space-y-3">
         <div className="flex items-center justify-between text-xs">
-          <span className="px-2.5 py-0.5 rounded-full bg-[#EFE9DC] text-[#524E48] font-medium">
-            {question.theme}
-          </span>
-          <span className="text-[#8E877D]">宛先: {recipient.name}</span>
+          {!firstRun && (<span className="px-2.5 py-0.5 rounded-full bg-[#EFE9DC] text-[#524E48] font-medium">{question.theme}</span>)}
+          {!firstRun && <span className="text-[#8E877D]">宛先: {recipient.name}</span>}
         </div>
 
         <div className="space-y-1.5">
           <span className="text-xs text-[#8E877D] tracking-wide block">
-            {recipient.name}からの問い
+            {firstRun
+              ? 'はじめの一通'
+              : todayState?.textForRecipient && todayState.textForRecipient !== question.text
+                ? `${recipient.name}からの問い`
+                : '今日の問い'}
           </span>
           <h2 className="font-hand text-[1.5rem] font-normal text-[#2B2B2B] leading-relaxed">
             {todayState?.textForRecipient || question.text}
@@ -253,7 +308,7 @@ export const AnswerView: React.FC<Props> = ({
                 setText(e.target.value);
                 if (transcribeError) setTranscribeError('');
               }}
-              placeholder={`${recipient.name}へ向けて、思いつくままに。上手に書こうとせず、あなたの普段の言葉で大丈夫です...`}
+              placeholder={firstRun ? '思いつくままに。上手に書こうとせず、普段の言葉で。短くて大丈夫です...' : `${recipient.name}へ向けて、思いつくままに。上手に書こうとせず、あなたの普段の言葉で大丈夫です...`}
               className="w-full p-5 bg-[#FAF7F0] border border-[#E0D8CB] rounded-2xl text-[#2B2B2B] placeholder-[#A49E93] font-mincho text-base leading-relaxed focus:outline-hidden focus:border-[#2B2B2B] transition-all resize-y"
             />
 
@@ -333,42 +388,64 @@ export const AnswerView: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Follow-up Question Stage */}
+      {/* 聞き手モード: 追い質問の往復（最大5） */}
       {stage === 'followup' && (
-        <div className="space-y-6">
-          {/* Main Answer Summary Pill */}
+        <div className="space-y-5">
+          {/* 本文 */}
           <div className="p-4 rounded-xl bg-[#FAF7F0] border border-[#E0D8CB] space-y-1.5">
             <span className="text-[11px] text-[#8E877D] block">あなたがのこした言葉:</span>
-            <p className="text-sm text-[#2B2B2B] font-mincho line-clamp-3 leading-relaxed">
+            <p className="text-sm text-[#2B2B2B] font-mincho leading-relaxed whitespace-pre-wrap">
               {text}
             </p>
           </div>
 
-          {/* Follow-up Card */}
+          {/* 済んだ往復（逐語録） */}
+          {dialogue.length > 0 && (
+            <div className="space-y-3">
+              {dialogue.map((d, i) => (
+                <div key={i} className="space-y-1.5">
+                  <p className="text-sm font-hand text-[#524E48] leading-relaxed pl-1">
+                    <span className="text-[10px] text-[#8E877D] mr-2">{recipient.name}</span>
+                    {d.q}
+                  </p>
+                  <p className="text-sm font-mincho text-[#2B2B2B] leading-relaxed whitespace-pre-wrap pl-4 border-l border-[#E0D8CB]">
+                    {d.a}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* いまの問い */}
           <div className="washi-card rounded-2xl p-6 md:p-8 space-y-4">
-            <div className="flex items-center gap-2 text-xs text-[#8E877D]">
-              <span>封をしたあと、{recipient.name}がもう一つ聞いてきました</span>
+            <div className="flex items-center justify-between text-xs text-[#8E877D]">
+              <span>
+                {dialogue.length === 0
+                  ? `封をしたあと、${recipient.name}がもう一つ聞いてきました`
+                  : `${recipient.name}が、さらに聞いてきました`}
+              </span>
+              <span>{dialogue.length + 1} / {MAX_TURNS}</span>
             </div>
 
-            <h3 className="text-xl font-mincho font-medium text-[#2B2B2B] leading-relaxed">
-              {followUpQuestion}
-            </h3>
+            {isGeneratingFollowUp && !followUpQuestion ? (
+              <div className="flex items-center gap-2 text-sm text-[#8E877D] font-mincho py-2">
+                <Loader2 className="w-4 h-4 animate-spin text-[#2B2B2B]" />
+                <span>{recipient.name}が、あなたの言葉を読んでいます…</span>
+              </div>
+            ) : (
+              <h3 className="text-xl font-hand text-[#2B2B2B] leading-relaxed">{followUpQuestion}</h3>
+            )}
 
-            <p className="text-xs text-[#8E877D]">
-              この問いに答えても、答えなくても大丈夫です。
-            </p>
+            <p className="text-xs text-[#8E877D]">答えても、答えなくても大丈夫です。</p>
 
-            {/* Follow-up text area */}
-            <div className="pt-2 space-y-3">
+            <div className="pt-1 space-y-3">
               <textarea
                 rows={4}
                 value={followUpAnswer}
                 onChange={(e) => setFollowUpAnswer(e.target.value)}
-                placeholder="思い浮かんだことがあれば、自由に書き添えてください..."
+                placeholder="思い浮かんだことがあれば、自由に..."
                 className="w-full p-4 bg-[#FCFAF6] border border-[#E0D8CB] rounded-xl text-[#2B2B2B] placeholder-[#A49E93] font-mincho text-sm leading-relaxed focus:outline-hidden focus:border-[#2B2B2B] transition-all resize-y"
               />
-
-              {/* Follow-up Mic Bar */}
               <div className="flex items-center justify-between">
                 <button
                   type="button"
@@ -390,7 +467,6 @@ export const AnswerView: React.FC<Props> = ({
                     </>
                   )}
                 </button>
-
                 {isTranscribing && (
                   <span className="text-xs text-[#2B2B2B] flex items-center gap-1">
                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -401,24 +477,50 @@ export const AnswerView: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-2.5 pt-2">
+          {/* いつ読んでほしいか */}
+          <div className="space-y-2">
+            <span className="text-[11px] text-[#8E877D] tracking-wide block">いつ読んでほしいか（任意）</span>
+            <div className="flex flex-wrap gap-1.5">
+              {READ_WHEN_OPTIONS.map((opt) => {
+                const on = readWhen === opt;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setReadWhen(on ? undefined : opt)}
+                    className={`px-3 py-1.5 rounded-full text-xs border transition-all cursor-pointer ${
+                      on
+                        ? 'border-[#2B2B2B] bg-[#EFE9DC] text-[#2B2B2B]'
+                        : 'border-[#E0D8CB] bg-transparent text-[#6E685E] hover:border-[#2B2B2B]/50'
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 操作 */}
+          <div className="space-y-2.5 pt-1">
+            {dialogue.length + 1 < MAX_TURNS && (
+              <button
+                type="button"
+                onClick={() => handleTurn(true)}
+                disabled={isFollowUpRecording || isTranscribing || isGeneratingFollowUp || !followUpAnswer.trim()}
+                className="w-full py-3 px-6 border border-[#E0D8CB] hover:border-[#2B2B2B] disabled:opacity-40 bg-transparent text-[#2B2B2B] text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>答えて、もう一つ聞いてもらう</span>
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => handleComplete(true)}
+              onClick={() => handleTurn(false)}
               disabled={isFollowUpRecording || isTranscribing}
               className="w-full py-3.5 px-6 border border-[#2B2B2B] bg-transparent hover:bg-[#2B2B2B]/5 text-[#2B2B2B] font-medium rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
             >
               <CheckCircle className="w-4 h-4" />
-              <span>追い質問に答えて完了する</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleComplete(false)}
-              className="w-full py-3 px-4 bg-transparent hover:bg-[#2B2B2B]/5 text-[#524E48] text-sm font-medium rounded-xl border border-[#2B2B2B] transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>今日はここまでにする</span>
+              <span>{followUpAnswer.trim() ? '答えて、今日はここまで' : '今日はここまでにする'}</span>
             </button>
           </div>
         </div>

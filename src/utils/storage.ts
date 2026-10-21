@@ -4,6 +4,7 @@ import {
   TodayQuestionState,
   MirrorGeneration,
   CompiledLetter,
+  Trustee,
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -13,6 +14,7 @@ const STORAGE_KEYS = {
   MIRROR_CACHE: 'nocosu_mirror_generation',
   LETTERS: 'nocosu_compiled_letters',
   BOOKLET_ORDER_URL: 'nocosu_booklet_order_url',
+  TRUSTEE: 'nocosu_trustee',
 };
 
 // Recipient profile
@@ -245,6 +247,26 @@ export function getSolarTerm(dateStr?: string): string {
     }
   }
   return current;
+}
+
+// 託す人
+export function getTrustee(): Trustee | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.TRUSTEE);
+    return raw ? (JSON.parse(raw) as Trustee) : null;
+  } catch (e) {
+    console.error('Error reading trustee', e);
+    return null;
+  }
+}
+
+export function saveTrustee(trustee: Trustee | null): void {
+  try {
+    if (!trustee) localStorage.removeItem(STORAGE_KEYS.TRUSTEE);
+    else localStorage.setItem(STORAGE_KEYS.TRUSTEE, JSON.stringify(trustee));
+  } catch (e) {
+    console.error('Error saving trustee', e);
+  }
 }
 
 // Booklet order URL configuration
